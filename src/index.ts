@@ -211,6 +211,12 @@ async function main() {
 								return;
 							}
 
+							const response = encodeMessage(
+								0,
+								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+								new Uint8Array([REQUEST_STATUS.SUCCESS])
+							);
+
 							socket.data.listener = listener;
 							socket.data.subdomain = requestedSubdomain;
 						}
