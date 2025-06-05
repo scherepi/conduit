@@ -92,7 +92,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 
 function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
 	const portListener = startListener(0, initiatingSocket);
-	// addReverseProxy(subdomain, portListener ? portListener.port : 65536);
+	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
 	return portListener;
 }
 
@@ -201,7 +201,6 @@ async function main() {
 						} else {
 							subdomainsInUse.add(requestedSubdomain);
 							const listener = startSubdomainListener(requestedSubdomain, socket);
-							// const listener = startListener(0, socket);
 							if (!listener) {
 								// TODO: make the server accountable to the client for errors
 								// something has gone horribly wrong.
