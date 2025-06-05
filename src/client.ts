@@ -82,7 +82,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 				console.log("got data from server");
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
-					console.log(`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`);
+					console.log(`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes:\n`, parsedMessage.payload);
 					switch (parsedMessage.messageType) {
 						case MESSAGE_TYPE.DATA:
 							localTunnels[parsedMessage.connectionId]?.write(
@@ -216,12 +216,12 @@ async function establishLocalTunnel(connectionId: number, localPort: number, sil
 			},
 			open(_socket) {
 				// called when the local tunnel is established
-				console.log("Established local tunnel.");
+				console.log("Connection created.");
 				// TODO: implement parity here, make sure server knows to wait til local tunnel is created
 			},
 			close(_socket, error) {
 				// called when the local tunnel is closed by the client
-				if (!silent) { console.log("Closed local tunnel."); }	
+				if (!silent) { console.log("Connection closed."); }	
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.CONNECTION_CLOSED, null);
 				conduitSocket?.write(encodedMessage);
 				delete localTunnels[connectionId];
