@@ -158,7 +158,7 @@ async function main() {
 			console.error("Failed to connect to Caddy. Is it running?");
 		} else {
 			console.error("An error occurred while initializing Caddy:\n", e);
-			console.log(await e.response.text());
+			console.log(await (e as { response: Response }).response.text());
 		}
 	}
 
