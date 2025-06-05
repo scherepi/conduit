@@ -83,8 +83,9 @@ export async function addReverseProxy(subdomain: string, port: number) {
             json: config,
         });
         console.log("Added reverse proxy for", subdomain, "on port", port);
-    } catch (e) {
+    } catch (e: any) {
         console.error(`Failed to add reverse proxy for ${subdomain}:\n`, e);
+        console.log(await e.response.text())
     }
 }
 
