@@ -1,5 +1,5 @@
 import ky from "ky";
-import { caddyPort, hostname } from ".";
+import { caddyPort, hostname } from "./server";
 
 export async function initCaddy(certFile: string, keyFile: string) {
     // clear the caddy config and set up our own with a pre-existing certificate

@@ -82,6 +82,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 				console.log("got data from server");
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
+					console.log(`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`);
 					switch (parsedMessage.messageType) {
 						case MESSAGE_TYPE.DATA:
 							localTunnels[parsedMessage.connectionId]?.write(
