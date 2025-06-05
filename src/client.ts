@@ -51,7 +51,7 @@ const cli = meow(
 	}
 );
 */
-const hostname = cli.input.at(0); // the first argument passed to the CLI
+
 const conduitPort: number = 4225; // hard-coded server control port - "HACK" on a phone!
 
 let conduitSocket: Bun.Socket | undefined; // connection to the central conduit server; value assigned in functions
@@ -60,15 +60,27 @@ let assignedPort: number = 0;
 const pendingData = new Map<number, Array<Uint8Array>>(); // data that is pending to be sent to the local port, index is connection ID
 const parser = new MessageParser(); // parser for incoming messages from the conduit server
 
-if (hostname) connectToConduit(hostname, cli.flags);
+let verbosity: number = 0;
+
+
+async function runClient(hostname: string, localPort: number, remotePort?: number, subdomain?: string, verbosityLevel: number) {
+	verbosity = verbosityLevel;
+	if (remotePort) {
+		connectToConduit(hostname, localPort, remotePort);
+	}
+	if (subdomain) {
+		connectToConduit(hostname, localPort, null, subdomain);
+	}
+	
+}
 
 // the central function that connects to the conduit server
-async function connectToConduit(hostname: string, flags: typeof cli.flags) {
-	if (flags.remotePort && flags.subdomain) {
+async function connectToConduit(hostname: string, localPort:number, remotePort?: number|null, subdomain?: string) {
+	if (remotePort && subdomain) {
 		console.error("You can't pick a subdomain and a remote port - your greed is disgusting. Just pick one.");
 		process.exit(1);
 	}
-	if (!flags.localPort) {
+	if (!localPort) {
 			console.error("You need to at least specify the local port, bonehead.");
 			process.exit(1);
 		}
@@ -106,7 +118,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 						case MESSAGE_TYPE.NEW_CONNECTION:
 							console.log("Received new connection request from server with ID:", parsedMessage.connectionId);
 							// this function is async, but we intentionally don't await it
-							establishLocalTunnel(parsedMessage.connectionId, flags.localPort ? flags.localPort : 0, false);
+							establishLocalTunnel(parsedMessage.connectionId, localPort ? localPort : 0, false);
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
 							const portStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
@@ -120,7 +132,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 							} else if (portStatus == REQUEST_STATUS.UNAVAILABLE) {
 								// TODO: review for suitability lolll
 								console.error("Sorry babygworl, the server doesn't have your port available.");
-								if (!flags.silentMode) {
+								if (!silentMode) {
 									console.log(
 										"Try running the command without specifying a remote port - the server will assign you what's open."
 									);
@@ -140,7 +152,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 								console.log("Bugs are an important part of the ecosystem ✨");
 								break;
 							}
-							if (!flags.silentMode){
+							if (!silentMode){
 								console.log(
 								`Successfully connected to conduit server. You've been assigned port ${assignedPort}.`
 								);
@@ -153,7 +165,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 							const subdomainStatus = parsedMessage.payload ? parsedMessage.payload[0] : 1
 							// this message is received when the server reports the availability of a subdomain to the client.
 							if (subdomainStatus == REQUEST_STATUS.SUCCESS) {
-								console.log(`Successfully acquired subdomain ${flags.subdomain}.${hostname}`);
+								console.log(`Successfully acquired subdomain ${subdomain}.${hostname}`);
 							} else if (subdomainStatus == REQUEST_STATUS.UNAVAILABLE) {
 								console.error("Unable to acquire subdomain. Please try a different subdomain or use a remote port.");
 								process.exit(1);
@@ -179,19 +191,19 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 				console.log("connected to server");
 				// called on the opening of a new connection to the conduit
 				// first step is to request our port on the conduit server
-				if (flags.remotePort) {
+				if (remotePort) {
 					const portRequestMessage = encodeMessage(
 						0,
 						MESSAGE_TYPE.PORT_REQUEST,
-						new Uint8Array([flags.remotePort >> 8, flags.remotePort & 0xff])
+						new Uint8Array([remotePort >> 8, remotePort & 0xff])
 					);
 					socket.write(portRequestMessage);
-					assignedPort = flags.remotePort; // set the assigned port to the remote port we requested
-				} else if (flags.subdomain) {
+					assignedPort = remotePort; // set the assigned port to the remote port we requested
+				} else if (subdomain) {
 					const portRequestMessage = encodeMessage(
 						0,
 						MESSAGE_TYPE.SUBDOMAIN_REQUEST,
-						new Uint8Array(new TextEncoder().encode(flags.subdomain))
+						new Uint8Array(new TextEncoder().encode(subdomain))
 					);
 					socket.write(portRequestMessage);
 				}else {
