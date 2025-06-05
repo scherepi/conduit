@@ -133,7 +133,7 @@ async function main() {
 				while (!socket.data.hasRequestedHome) {
 					const message = socket.data.parser.parseMessage();
 					if (!message) continue; // no complete message yet, wait for more data
-					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST || message.messageType !== MESSAGE_TYPE.SUBDOMAIN_REQUEST) continue; // not a port request, ignore (this should never happen)
+					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST && message.messageType !== MESSAGE_TYPE.SUBDOMAIN_REQUEST) continue; // not a port request, ignore (this should never happen)
 
 					//TODO: implement port seeking
 					if (message.messageType == MESSAGE_TYPE.PORT_REQUEST) {
