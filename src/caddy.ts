@@ -1,8 +1,8 @@
 import ky from "ky";
 import { caddyPort, hostname } from ".";
 
-export async function initCaddy() {
-    // clear the caddy config and set up our own
+export async function initCaddy(certFile: string, keyFile: string) {
+    // clear the caddy config and set up our own with a pre-existing certificate
     const baseConfig = {
         apps: {
             http: {
@@ -23,18 +23,52 @@ export async function initCaddy() {
                                 ],
                             },
                         ],
+                        tls_connection_policies: [{}], // Default connection policy
                     },
                 },
             },
+            tls: {
+                certificates: {
+                    load_files: [
+                        {
+                            certificate: certFile, // Path to your certificate file
+                            key: keyFile,         // Path to your private key file
+                            tags: ["global_cert"] // Optional tag to identify this cert
+                        }
+                    ]
+                },
+                automation: {
+                    policies: [
+                        {
+                            subjects: ["*.example.com", "example.com"], // Replace with your domain
+                            issuer: {
+                                module: "internal", // Use the internal issuer as fallback
+                                timeout: "1m"
+                            },
+                            // Use the loaded certificate instead of requesting a new one
+                            load_certificates: ["global_cert"]
+                        }
+                    ]
+                }
+            }
         },
     };
 
-    const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
-        json: baseConfig,
-    });
+    try {
+        const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
+            json: baseConfig,
+        });
 
-    console.log(`Initialized Caddy confguration.`);
-    return response.json();
+        console.log(`Initialized Caddy configuration with pre-existing certificate.`);
+        return response.json();
+    } catch (error: any) {
+        console.error("Failed to initialize Caddy:", error.message);
+        if (error.response) {
+            const errorText = await error.response.text();
+            console.error("Error details:", errorText);
+        }
+        throw error;
+    }
 }
 
 export async function addReverseProxy(subdomain: string, port: number) {
