@@ -57,6 +57,7 @@ const conduitPort: number = 4225; // hard-coded server control port - "HACK" on 
 let conduitSocket: Bun.Socket | undefined; // connection to the central conduit server; value assigned in functions
 let localTunnels: { [connectionId: number]: Bun.Socket } = {}; // same here!
 let assignedPort: number = 0;
+const pendingData = new Map<number, Array<Uint8Array>>(); // data that is pending to be sent to the local port, index is connection ID
 const parser = new MessageParser(); // parser for incoming messages from the conduit server
 
 if (hostname) connectToConduit(hostname, cli.flags);
@@ -83,14 +84,28 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 				console.log("got data from server");
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
-					console.log(`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes:\n`, parsedMessage.payload);
+					console.log(`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`);
 					switch (parsedMessage.messageType) {
 						case MESSAGE_TYPE.DATA:
-							localTunnels[parsedMessage.connectionId]?.write(
-								parsedMessage.payload || new Uint8Array()
-							);
+							console.log("Trying to write data to local tunnel with connection ID:", parsedMessage.connectionId, "state", localTunnels[parsedMessage.connectionId]?.readyState);
+							
+							if (localTunnels[parsedMessage.connectionId]) {
+								localTunnels[parsedMessage.connectionId]?.write(
+									parsedMessage.payload || new Uint8Array()
+								);
+							} else {
+								console.warn(`Local tunnel ${parsedMessage.connectionId} is not open, buffering data`);
+								if (!pendingData.has(parsedMessage.connectionId)) {
+									pendingData.set(parsedMessage.connectionId, []);
+								}
+								pendingData.get(parsedMessage.connectionId)?.push(
+									parsedMessage.payload || new Uint8Array()
+								);
+							}
 							break;
 						case MESSAGE_TYPE.NEW_CONNECTION:
+							console.log("Received new connection request from server with ID:", parsedMessage.connectionId);
+							// this function is async, but we intentionally don't await it
 							establishLocalTunnel(parsedMessage.connectionId, flags.localPort ? flags.localPort : 0, false);
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
@@ -203,6 +218,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 	});
 }
 
+// connection from the conduit client to the local port
 async function establishLocalTunnel(connectionId: number, localPort: number, silent: boolean) {
 	localTunnels[connectionId] = await Bun.connect({
 		hostname: "localhost",
@@ -215,14 +231,21 @@ async function establishLocalTunnel(connectionId: number, localPort: number, sil
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.DATA, data);
 				conduitSocket?.write(encodedMessage);
 			},
-			open(_socket) {
+			open(socket) {
 				// called when the local tunnel is established
-				console.log("Connection created.");
+				console.log("Local connection created.");
+				if (pendingData.has(connectionId)) {
+					console.log(`Sending pending data for connection ${connectionId}`);
+					for (const data of pendingData.get(connectionId) || []) {
+						socket.write(data);
+					}
+					pendingData.delete(connectionId); // clear the pending data after sending
+				}
 				// TODO: implement parity here, make sure server knows to wait til local tunnel is created
 			},
 			close(_socket, error) {
 				// called when the local tunnel is closed by the client
-				if (!silent) { console.log("Connection closed."); }	
+				if (!silent) { console.log("Local connection closed."); }	
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.CONNECTION_CLOSED, null);
 				conduitSocket?.write(encodedMessage);
 				delete localTunnels[connectionId];
