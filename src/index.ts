@@ -200,8 +200,8 @@ async function main() {
 							socket.write(response);
 						} else {
 							subdomainsInUse.add(requestedSubdomain);
-							// const listener = startSubdomainListener(requestedSubdomain, socket);
-							const listener = startListener(0, socket);
+							const listener = startSubdomainListener(requestedSubdomain, socket);
+							// const listener = startListener(0, socket);
 							if (!listener) {
 								// TODO: make the server accountable to the client for errors
 								// something has gone horribly wrong.
@@ -224,7 +224,7 @@ async function main() {
 							);
 							socket.write(response);
 							socket.data.hasRequestedHome = true;
-							
+
 							socket.data.subdomain = requestedSubdomain;
 						}
 					}

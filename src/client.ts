@@ -203,7 +203,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 
 async function establishLocalTunnel(connectionId: number, localPort: number, silent: boolean) {
 	localTunnels[connectionId] = await Bun.connect({
-		hostname: "conduit.ws",
+		hostname: "localhost",
 		port: localPort,
 
 		socket: {
