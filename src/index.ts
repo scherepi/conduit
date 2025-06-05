@@ -1,9 +1,9 @@
+import { initCaddy } from "./caddy";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, PORT_STATUS } from "./messages";
-import ky from "ky";
 
-const hostname = "conduit.ws"; // for http/https subdomains only, not ports
+export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
 const controlPort = 4225;
-const caddyPort = 2019; // the caddy admin port
+export const caddyPort = 2019; // the caddy admin port
 const logPath: string = "conduit_log.txt";
 
 // status info about a client connection
@@ -99,41 +99,6 @@ async function log(error: string) {
 	}
 }
 
-async function initCaddy() {
-	// clear the caddy config and set up our own
-	const baseConfig = {
-		apps: {
-			http: {
-				servers: {
-					conduit: {
-						listen: [":80", ":443"],
-						routes: [
-							{
-								match: [{ host: [hostname] }],
-								handle: [
-									{
-										handler: "static_response",
-										headers: {
-											Location: ["https://github.com/scherepi/conduit"],
-										},
-										status_code: 302,
-									},
-								],
-							},
-						],
-					},
-				},
-			},
-		},
-	};
-
-	const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
-		json: baseConfig,
-	});
-
-	console.log(`Initialized Caddy confguration.`);
-	return response.json();
-}
 
 async function main() {
 	try {
