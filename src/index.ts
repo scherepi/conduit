@@ -10,6 +10,7 @@ const logPath: string = "conduit_log.txt";
 type ClientData = {
 	hasRequestedHome: boolean;
 	port: number | null;
+	subdomain: string | null;
 	parser: MessageParser;
 	listener: Bun.TCPSocketListener<ServerListenerData> | null; // the listener server that is created for this client
 };
@@ -179,6 +180,33 @@ async function main() {
 						}
 					} else if (message.messageType == MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
 						// Handle subdomain requests here
+						const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
+
+						if (subdomainsInUse.has(requestedSubdomain)) {
+							// send the client a message that says that subdomain is unavailable
+							const response = encodeMessage(
+								0,
+								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+							);
+							socket.write(response);
+						} else {
+							const listener = startListener(requestedSubdomain, socket);
+							if (!listener) {
+								// TODO: make the server accountable to the client for errors
+								// something has gone horribly wrong.
+								const response = encodeMessage(
+									0,
+									MESSAGE_TYPE.PORT_RESPONSE,
+									new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+								)
+								socket.write(response);
+								return;
+							}
+
+							socket.data.listener = listener;
+							socket.data.subdomain = requestedSubdomain;
+						}
 					}
 				}
 
