@@ -226,6 +226,7 @@ async function main() {
 				socket.data = {
 					hasRequestedHome: false,
 					port: null,
+					subdomain: null,
 					parser: new MessageParser(),
 					listener: null,
 				};
