@@ -45,7 +45,7 @@ export async function initCaddy(certFile: string, keyFile: string) {
                                 module: "internal", // internal issuer is fallback
                                 timeout: "1m"
                             }],
-                            reuse_private_keys: true,
+                            // reuse_private_keys: true,
                         }
                     ]
                 }
