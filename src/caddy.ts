@@ -23,7 +23,7 @@ export async function initCaddy(certFile: string, keyFile: string) {
                                 ],
                             },
                         ],
-                        tls_connection_policies: [{}], // Default connection policy
+                        tls_connection_policies: [{}],
                     },
                 },
             },
@@ -31,21 +31,20 @@ export async function initCaddy(certFile: string, keyFile: string) {
                 certificates: {
                     load_files: [
                         {
-                            certificate: certFile, // Path to your certificate file
-                            key: keyFile,         // Path to your private key file
-                            tags: ["global_cert"] // Optional tag to identify this cert
+                            certificate: certFile,
+                            key: keyFile,
+                            tags: ["global_cert"]
                         }
                     ]
                 },
                 automation: {
                     policies: [
                         {
-                            subjects: ["*.example.com", "example.com"], // Replace with your domain
+                            subjects: [hostname, "*." + hostname],
                             issuer: {
-                                module: "internal", // Use the internal issuer as fallback
+                                module: "internal", // internal issuer is fallback
                                 timeout: "1m"
                             },
-                            // Use the loaded certificate instead of requesting a new one
                             load_certificates: ["global_cert"]
                         }
                     ]
