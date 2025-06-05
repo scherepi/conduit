@@ -8,7 +8,7 @@ const logPath: string = "conduit_log.txt";
 
 // status info about a client connection
 type ClientData = {
-	hasRequestedHome: boolean;
+	hasRequestedPort: boolean;
 	port: number | null;
 	subdomain: string | null;
 	parser: MessageParser;
@@ -133,101 +133,100 @@ async function main() {
 				socket.data.parser.addData(data);
 
 				// if the client has yet to request a port, handle that before anything else
-				while (!socket.data.hasRequestedHome) {
+				while (!socket.data.hasRequestedPort) {
 					const message = socket.data.parser.parseMessage();
 					if (!message) continue; // no complete message yet, wait for more data
-					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST && message.messageType !== MESSAGE_TYPE.SUBDOMAIN_REQUEST) continue; // not a port request, ignore (this should never happen)
+					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
 
-					//TODO: implement port seeking
-					if (message.messageType == MESSAGE_TYPE.PORT_REQUEST) {
-						const requestedPort = message.payload
-							? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0)
-							: 0;
+					const requestedPort = message.payload
+						? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0)
+						: 0;
 
-						if (portsInUse.has(requestedPort)) {
-							// port is already in use, send an error response
+					if (portsInUse.has(requestedPort)) {
+						// port is already in use, send an error response
+						const response = encodeMessage(
+							0,
+							MESSAGE_TYPE.PORT_RESPONSE,
+							new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+						);
+						socket.write(response);
+					} else {
+						const listener = startListener(requestedPort, socket);
+						if (!listener) {
+							// this should never happen, but if something goes wrong just say the port is unavailable
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.PORT_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
 							);
 							socket.write(response);
-						} else {
-							const listener = startListener(requestedPort, socket);
-							if (!listener) {
-								// this should never happen, but if something goes wrong just say the port is unavailable
-								const response = encodeMessage(
-									0,
-									MESSAGE_TYPE.PORT_RESPONSE,
-									new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-								);
-								socket.write(response);
-								return;
-							}
-
-							socket.data.listener = listener;
-							socket.data.port = listener.port;
-
-							// port is available, tell the client to move on
-							let response;
-							if (requestedPort == 0) {
-								// If port was randomly assigned, broadcast the assignment to the user
-								response = encodeMessage(
-									0,
-									MESSAGE_TYPE.PORT_ASSIGNED,
-									new Uint8Array([listener.port >> 8, listener.port & 0xff])
-								);
-							} else {
-								response = encodeMessage(
-									0,
-									MESSAGE_TYPE.PORT_RESPONSE,
-									new Uint8Array([REQUEST_STATUS.SUCCESS])
-								);
-							}
-							socket.write(response);
-							socket.data.hasRequestedHome = true;
+							return;
 						}
-					} else if (message.messageType == MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
-						// Handle subdomain requests here
-						const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
 
-						if (subdomainsInUse.has(requestedSubdomain)) {
-							// send the client a message that says that subdomain is unavailable
-							const response = encodeMessage(
+						socket.data.listener = listener;
+						socket.data.port = listener.port;
+
+						// port is available, tell the client to move on
+						let response;
+						if (requestedPort == 0) {
+							// If port was randomly assigned, broadcast the assignment to the user
+							response = encodeMessage(
 								0,
-								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+								MESSAGE_TYPE.PORT_ASSIGNED,
+								new Uint8Array([listener.port >> 8, listener.port & 0xff])
 							);
-							socket.write(response);
 						} else {
-							subdomainsInUse.add(requestedSubdomain);
-							const listener = startSubdomainListener(requestedSubdomain, socket);
-							if (!listener) {
-								// TODO: make the server accountable to the client for errors
-								// something has gone horribly wrong.
-								const response = encodeMessage(
-									0,
-									MESSAGE_TYPE.PORT_RESPONSE,
-									new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-								)
-								socket.write(response);
-								return;
-							}
-
-							socket.data.listener = listener;
-							socket.data.port = listener.port;
-
-							const response = encodeMessage(
+							response = encodeMessage(
 								0,
-								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+								MESSAGE_TYPE.PORT_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.SUCCESS])
 							);
-							socket.write(response);
-							socket.data.hasRequestedHome = true;
-
-							socket.data.subdomain = requestedSubdomain;
 						}
+						socket.write(response);
+						socket.data.hasRequestedPort = true;
 					}
+					
+					// } else if (message.messageType == MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
+					// 	// Handle subdomain requests here
+					// 	const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
+
+					// 	if (subdomainsInUse.has(requestedSubdomain)) {
+					// 		// send the client a message that says that subdomain is unavailable
+					// 		const response = encodeMessage(
+					// 			0,
+					// 			MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+					// 			new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+					// 		);
+					// 		socket.write(response);
+					// 	} else {
+					// 		subdomainsInUse.add(requestedSubdomain);
+					// 		const listener = startSubdomainListener(requestedSubdomain, socket);
+					// 		if (!listener) {
+					// 			// TODO: make the server accountable to the client for errors
+					// 			// something has gone horribly wrong.
+					// 			const response = encodeMessage(
+					// 				0,
+					// 				MESSAGE_TYPE.PORT_RESPONSE,
+					// 				new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+					// 			)
+					// 			socket.write(response);
+					// 			return;
+					// 		}
+
+					// 		socket.data.listener = listener;
+					// 		socket.data.port = listener.port;
+
+					// 		const response = encodeMessage(
+					// 			0,
+					// 			MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+					// 			new Uint8Array([REQUEST_STATUS.SUCCESS])
+					// 		);
+					// 		socket.write(response);
+					// 		socket.data.hasRequestedPort = true;
+
+					// 		socket.data.subdomain = requestedSubdomain;
+					// 	}
+					// }
 				}
 
 				// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
@@ -244,7 +243,7 @@ async function main() {
 			
 				appropiateLogs(true, `New connection from ${socket.remoteAddress}:${socket.remotePort}`)
 				socket.data = {
-					hasRequestedHome: false,
+					hasRequestedPort: false,
 					port: null,
 					subdomain: null,
 					parser: new MessageParser(),
