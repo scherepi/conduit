@@ -134,9 +134,9 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 						case MESSAGE_TYPE.SUBDOMAIN_RESPONSE:
 							const subdomainStatus = parsedMessage.payload ? parsedMessage.payload[0] : 1
 							// this message is received when the server reports the availability of a subdomain to the client.
-							if (subdomainStatus == SUBDOMAIN_STATUS.SUCCESS) {
+							if (subdomainStatus == REQUEST_STATUS.SUCCESS) {
 								console.log(`Successfully acquired subdomain ${flags.subdomain}.${hostname}`);
-							} else if (subdomainStatus == SUBDOMAIN_STATUS.UNAVAILABLE) {
+							} else if (subdomainStatus == REQUEST_STATUS.UNAVAILABLE) {
 								console.error("Unable to acquire subdomain. Please try a different subdomain or use a remote port.");
 								process.exit(1);
 							}
