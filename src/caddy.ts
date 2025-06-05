@@ -41,11 +41,11 @@ export async function initCaddy(certFile: string, keyFile: string) {
                     policies: [
                         {
                             subjects: [hostname, "*." + hostname],
-                            issuers: {
+                            issuers: [{
                                 module: "internal", // internal issuer is fallback
                                 timeout: "1m"
-                            },
-                            load_certificates: ["global_cert"]
+                            }],
+                            reuse_private_keys: true,
                         }
                     ]
                 }
