@@ -22,10 +22,5 @@ export function appropiateLogs(success: boolean, content: string) {
     } else {
 
         console.error(chalk.red(`\u{274C} - ${chalk.bgRed("  " + chalk.bold.white(formatString(content))+ "  ")}`))
-
     }
-
-
-
-
 }

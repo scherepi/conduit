@@ -1,6 +1,6 @@
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
-import { appropiateLogs } from "./functions"
+import { appropiateLogs } from "./logs"
 export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
 const controlPort = 4225;
 export const caddyPort = 2019; // the caddy admin port
