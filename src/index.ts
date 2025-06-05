@@ -1,4 +1,4 @@
-import { initCaddy } from "./caddy";
+import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
 
 export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
@@ -86,6 +86,11 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 	console.log(`Starting listener on port ${realPort}`);
 
 	return listener;
+}
+
+function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
+	const portListener = startListener(0, initiatingSocket);
+	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
 }
 
 async function log(error: string) {
@@ -191,7 +196,7 @@ async function main() {
 							);
 							socket.write(response);
 						} else {
-							const listener = startListener(requestedSubdomain, socket);
+							const listener = startSubdomainListener(requestedSubdomain, socket);
 							if (!listener) {
 								// TODO: make the server accountable to the client for errors
 								// something has gone horribly wrong.
