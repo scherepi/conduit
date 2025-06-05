@@ -129,7 +129,7 @@ async function main() {
 		hostname: "0.0.0.0",
 		port: controlPort,
 		socket: {
-			data(socket, data) {
+			async data(socket, data) {
 				socket.data.parser.addData(data);
 
 				// if the client has yet to request a port, handle that before anything else
@@ -231,11 +231,37 @@ async function main() {
 
 				// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
 				for (const message of socket.data.parser.parseMessages()) {
-					if (message.messageType !== MESSAGE_TYPE.DATA) continue; // only handle data messages-- nothing else should come through
+					// only handle data and subdomain messages-- nothing else should come through
+					if (message.messageType === MESSAGE_TYPE.DATA) {
+						activeConnections
+							.get(socket.data.port as number)!
+							[message.connectionId]?.write(message.payload || new Uint8Array());
 
-					activeConnections
-						.get(socket.data.port as number)!
-						[message.connectionId]?.write(message.payload || new Uint8Array());
+					} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
+						const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
+
+						if (subdomainsInUse.has(requestedSubdomain)) {
+							// send the client a message that says that subdomain is unavailable
+							const response = encodeMessage(
+								0,
+								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+							);
+							socket.write(response);
+						} else {
+							await addReverseProxy(requestedSubdomain, socket.data.port as number);
+							
+							subdomainsInUse.add(requestedSubdomain);
+							socket.data.subdomain = requestedSubdomain;
+							
+							const response = encodeMessage(
+								0,
+								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+								new Uint8Array([REQUEST_STATUS.SUCCESS])
+							);
+							socket.write(response);
+						}
+					}
 				}
 			},
 			open(socket) {
