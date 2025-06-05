@@ -79,7 +79,7 @@ export async function addReverseProxy(subdomain: string, port: number) {
     };
 
     try {
-        await ky.patch(`http://localhost:${caddyPort}/config/apps/http/servers/conduit/routes`, {
+        await ky.put(`http://localhost:${caddyPort}/config/apps/http/servers/conduit/routes/0`, {
             json: config,
         });
         console.log("Added reverse proxy for", subdomain, "on port", port);
