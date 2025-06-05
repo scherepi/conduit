@@ -236,8 +236,8 @@ async function establishLocalTunnel(connectionId: number, localPort: number, sil
 				console.log("Bugs are how flowers grow ✨");
 			},
 
-			connectError(_socket, _error) {
-				console.error("Something went wrong establishing the local tunnel.");
+			connectError(_socket, error) {
+				console.error("Something went wrong establishing the local tunnel:", error);
 				console.log(
 					"You shouldn't be seeing this - please make an issue on the GitHub repository."
 				);

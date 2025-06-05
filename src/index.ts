@@ -200,7 +200,8 @@ async function main() {
 							socket.write(response);
 						} else {
 							subdomainsInUse.add(requestedSubdomain);
-							const listener = startSubdomainListener(requestedSubdomain, socket);
+							// const listener = startSubdomainListener(requestedSubdomain, socket);
+							const listener = startListener(0, socket);
 							if (!listener) {
 								// TODO: make the server accountable to the client for errors
 								// something has gone horribly wrong.
@@ -213,18 +214,18 @@ async function main() {
 								return;
 							}
 
+							socket.data.listener = listener;
+							socket.data.port = listener.port;
+
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.SUCCESS])
 							);
-
 							socket.write(response);
-
-							socket.data.listener = listener;
-							socket.data.port = listener.port;
-							socket.data.subdomain = requestedSubdomain;
 							socket.data.hasRequestedHome = true;
+							
+							socket.data.subdomain = requestedSubdomain;
 						}
 					}
 				}
