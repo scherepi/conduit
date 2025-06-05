@@ -15,6 +15,8 @@ const cli = meow(
     
     --localPort, -p             the local port to forward to the remote host
 
+	--subdomain -d				your desired subdomain on the server (instead of specifying a remote port)
+
 	--remotePort, -r			if you want a specific one, the remote port the conduit server should host your service on
 
 	--silentMode, -s 			reduce client verbosity (you hate me don't you :( )
@@ -28,6 +30,11 @@ const cli = meow(
 			localPort: {
 				type: "number",
 				shortFlag: "p",
+			},
+			subdomain: {
+				type: "string",
+				shortFlag: "d",
+				isRequired: false
 			},
 			remotePort: {
 				type: "number",
@@ -55,6 +62,10 @@ if (hostname) connectToConduit(hostname, cli.flags);
 
 // the central function that connects to the conduit server
 async function connectToConduit(hostname: string, flags: typeof cli.flags) {
+	if (flags.remotePort && flags.subdomain) {
+		console.error("You can't pick a subdomain and a remote port - your greed is disgusting. Just pick one.");
+		process.exit(1);
+	}
 	if (!flags.localPort) {
 			console.error("You need to at least specify the local port, bonehead.");
 			process.exit(1);
@@ -147,7 +158,14 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 					);
 					socket.write(portRequestMessage);
 					assignedPort = flags.remotePort; // set the assigned port to the remote port we requested
-				} else {
+				} else if (flags.subdomain) {
+					const portRequestMessage = encodeMessage(
+						0,
+						MESSAGE_TYPE.SUBDOMAIN_REQUEST,
+						new Uint8Array(new TextEncoder().encode(flags.subdomain))
+					);
+					socket.write(portRequestMessage);
+				}else {
 					const portRequestMessage = encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null);
 					socket.write(portRequestMessage);
 				}

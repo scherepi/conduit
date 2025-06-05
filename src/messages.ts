@@ -6,12 +6,19 @@ export const MESSAGE_TYPE = {
 	PORT_REQUEST: 4,
 	PORT_RESPONSE: 5,
 	PORT_ASSIGNED: 6,
+	SUBDOMAIN_REQUEST: 7,
+	SUBDOMAIN_RESPONSE: 8
 };
 // status codes for PORT_RESPONSE
 export const PORT_STATUS = {
 	SUCCESS: 0, // sent when the port requested is available on the server, and not in use by another tunnel.
 	UNAVAILABLE: 1, // sorry, port is taken bbg
 };
+
+export const SUBDOMAIN_STATUS = {
+	SUCCESS: 0,
+	UNAVAILABLE: 1
+}
 
 /*
 outsider opens connection to a a listening port
