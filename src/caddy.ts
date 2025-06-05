@@ -41,7 +41,7 @@ export async function initCaddy(certFile: string, keyFile: string) {
                     policies: [
                         {
                             subjects: [hostname, "*." + hostname],
-                            issuer: {
+                            issuers: {
                                 module: "internal", // internal issuer is fallback
                                 timeout: "1m"
                             },
