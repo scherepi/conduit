@@ -1,18 +1,5 @@
 #!/usr/bin/env bun
-/*
-the client doesn't run a listener server, it runs some sort of connector
-when it gets a connection from the conduit, it opens a connection with the local port
-when it gets data from the conduit, it sends it to the local port
-when the connection closes, it closes the local port connection
 
-the client can't recieve connections from the conduit, though
-so the conduit needs to communicate "new connection"
-conduit signals:
-"new connection" - w/ a socket id
-"new data"
-"connection closed"
-essentially, one for every signal we have in the code
-*/
 import meow from "meow";
 import MessageParser, {
 	decodeMessage,
@@ -20,12 +7,17 @@ import MessageParser, {
 	MESSAGE_TYPE,
 	PORT_STATUS,
 } from "./messages";
+
 const cli = meow(
 	// USAGE MESSAGE
 
 	`Conduit: A link between worlds.
     
     --localPort, -p             the local port to forward to the remote host
+
+	--remotePort, -r			if you want a specific one, the remote port the conduit server should host your service on
+
+	--silentMode, -s 			reduce client verbosity (you hate me don't you :( )
 
     Usage: conduit <remote-host> -p <localPort>
     `,
@@ -36,6 +28,16 @@ const cli = meow(
 			localPort: {
 				type: "number",
 				shortFlag: "p",
+			},
+			remotePort: {
+				type: "number",
+				shortFlag: "r",
+				isRequired: false
+			},
+			silentMode: {
+				type: "boolean",
+				shortFlag: "s",
+				isRequired: false
 			},
 		},
 	}
@@ -49,9 +51,16 @@ let localTunnels: { [connectionId: number]: Bun.Socket } = {}; // same here!
 let assignedPort: number = 0;
 const parser = new MessageParser(); // parser for incoming messages from the conduit server
 
+if (hostname) connectToConduit(hostname, cli.flags);
+
 // the central function that connects to the conduit server
-async function connectToConduit(hostname: string, localPort: number, remotePort?: number) {
+async function connectToConduit(hostname: string, flags: typeof cli.flags) {
+	if (!flags.localPort) {
+			console.error("You need to at least specify the local port, bonehead.");
+			process.exit(1);
+		}
 	conduitSocket = await Bun.connect({
+		
 		hostname: hostname, // hostname for the remote conduit server
 		port: conduitPort, // this is the port that the conduit server will always run on.
 
@@ -68,7 +77,7 @@ async function connectToConduit(hostname: string, localPort: number, remotePort?
 							);
 							break;
 						case MESSAGE_TYPE.NEW_CONNECTION:
-							establishLocalTunnel(parsedMessage.connectionId, localPort);
+							establishLocalTunnel(parsedMessage.connectionId, flags.localPort ? flags.localPort : 0, flags.silentMode ? true : false);
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
 							const portStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
@@ -82,9 +91,11 @@ async function connectToConduit(hostname: string, localPort: number, remotePort?
 							} else if (portStatus == PORT_STATUS.UNAVAILABLE) {
 								// TODO: review for suitability lolll
 								console.error("Sorry babygworl, the server doesn't have your port available.");
-								console.log(
-									"Try running the command without specifying a remote port - the server will assign you what's open."
-								);
+								if (!flags.silentMode) {
+									console.log(
+										"Try running the command without specifying a remote port - the server will assign you what's open."
+									);
+								}
 							}
 							break;
 						case MESSAGE_TYPE.PORT_ASSIGNED:
@@ -100,9 +111,11 @@ async function connectToConduit(hostname: string, localPort: number, remotePort?
 								console.log("Bugs are an important part of the ecosystem ✨");
 								break;
 							}
-							console.log(
+							if (!flags.silentMode){
+								console.log(
 								`Successfully connected to conduit server. You've been assigned port ${assignedPort}.`
-							);
+								);
+							}
 							console.log(
 								`Tell your friends to visit ${hostname}:${assignedPort} to see your work!`
 							);
@@ -126,14 +139,14 @@ async function connectToConduit(hostname: string, localPort: number, remotePort?
 			open(socket) {
 				// called on the opening of a new connection to the conduit
 				// first step is to request our port on the conduit server
-				if (remotePort) {
+				if (flags.remotePort) {
 					const portRequestMessage = encodeMessage(
 						0,
 						MESSAGE_TYPE.PORT_REQUEST,
-						new Uint8Array([remotePort >> 8, remotePort & 0xff])
+						new Uint8Array([flags.remotePort >> 8, flags.remotePort & 0xff])
 					);
 					socket.write(portRequestMessage);
-					assignedPort = remotePort; // set the assigned port to the remote port we requested
+					assignedPort = flags.remotePort; // set the assigned port to the remote port we requested
 				} else {
 					const portRequestMessage = encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null);
 					socket.write(portRequestMessage);
@@ -158,7 +171,7 @@ async function connectToConduit(hostname: string, localPort: number, remotePort?
 	});
 }
 
-async function establishLocalTunnel(connectionId: number, localPort: number) {
+async function establishLocalTunnel(connectionId: number, localPort: number, silent: boolean) {
 	localTunnels[connectionId] = await Bun.connect({
 		hostname: "localhost",
 		port: localPort,
@@ -166,18 +179,20 @@ async function establishLocalTunnel(connectionId: number, localPort: number) {
 		socket: {
 			data(_socket, data) {
 				// whenever we receive data from the local port, encode it with the connection ID and pass it to the conduit
-				console.log("Data received from local port:", data);
+				if (!silent) {
+					console.log("Data received from local port:", data);
+				}
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.DATA, data);
 				conduitSocket?.write(encodedMessage);
 			},
 			open(_socket) {
 				// called when the local tunnel is established
-				console.log("Established local tunnel.");
+				if (!silent) { console.log("Established local tunnel."); }
 				// TODO: implement parity here, make sure server knows to wait til local tunnel is created
 			},
 			close(_socket, error) {
 				// called when the local tunnel is closed by the client
-				console.log("Closed local tunnel.");
+				if (!silent) { console.log("Closed local tunnel."); }	
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.CONNECTION_CLOSED, null);
 				conduitSocket?.write(encodedMessage);
 				delete localTunnels[connectionId];
@@ -205,7 +220,7 @@ async function establishLocalTunnel(connectionId: number, localPort: number) {
 			},
 			end(_socket) {
 				// this is called when the local application closes the connection.
-				console.log("The local application closed the connection.");
+				if (!silent) { console.log("The local application closed the connection."); }
 				// we don't need to handle this, because when this event occurs, one of the other handlers is called too.
 			},
 			timeout(_socket) {
@@ -221,6 +236,3 @@ async function establishLocalTunnel(connectionId: number, localPort: number) {
 		},
 	});
 }
-
-console.log("Testing connection to server");
-connectToConduit("conduit.ws", 8080, 8080);

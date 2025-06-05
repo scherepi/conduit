@@ -6,15 +6,6 @@ const controlPort = 4225;
 const caddyPort = 2019; // the caddy admin port
 const logPath: string = "conduit_log.txt";
 
-/*
-- gets a connection from a client
-- the client tells it what port it wants it to listen on, and leaves the connection open
-- the server starts a new proxy server on that port with Bun.listen
-- when *that listener* gets a connection, it waits for data
-- it just forwards that data back to the client that requested to create the listener on that port
-so we either need to maintain a database of client connections, or just use the socket that was used to create the listener
-*/
-
 // status info about a client connection
 type ClientData = {
 	hasRequestedPort: boolean;
@@ -28,12 +19,6 @@ const portsInUse: Set<number> = new Set();
 portsInUse.add(caddyPort); // just in case
 const activeConnections: Map<number, { [connectionId: number]: Bun.Socket<ServerListenerData> }> =
 	new Map(); // the outer key is the port, the inner key is the connection ID
-
-/*
-1. needs the initiating socket to send data back to
-2. the port #
-
-*/
 
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 	if (portsInUse.has(port) || isNaN(port)) {

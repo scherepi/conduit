@@ -10,6 +10,7 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
+		"conduit": "file:",
 		"ky": "^1.8.1",
 		"meow": "^13.2.0",
 		"prettier": "^3.5.3"
