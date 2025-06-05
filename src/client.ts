@@ -102,7 +102,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 							} else if (portStatus == REQUEST_STATUS.UNAVAILABLE) {
 								// TODO: review for suitability lolll
 								console.error("Sorry babygworl, the server doesn't have your port available.");
-								if (flags.silentMode == false) {
+								if (!flags.silentMode) {
 									console.log(
 										"Try running the command without specifying a remote port - the server will assign you what's open."
 									);
@@ -122,7 +122,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 								console.log("Bugs are an important part of the ecosystem ✨");
 								break;
 							}
-							if (flags.silentMode == false){
+							if (!flags.silentMode){
 								console.log(
 								`Successfully connected to conduit server. You've been assigned port ${assignedPort}.`
 								);
