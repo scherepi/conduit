@@ -1,5 +1,1 @@
-
-
-export default function findRelevantProject() {
-    
-}
+export default function findRelevantProject() {}
