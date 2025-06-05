@@ -249,6 +249,7 @@ async function main() {
 						portsInUse.delete(socket.data.port as number);
 					} else if (socket.data.subdomain) {
 						console.log(`Listener on subdomain ${socket.data.subdomain} closed.`);
+						removeReverseProxy(socket.data.subdomain);
 						subdomainsInUse.delete(socket.data.subdomain as string);
 					}
 				}
