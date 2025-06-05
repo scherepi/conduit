@@ -217,6 +217,8 @@ async function main() {
 								new Uint8Array([REQUEST_STATUS.SUCCESS])
 							);
 
+							socket.write(response);
+
 							socket.data.listener = listener;
 							socket.data.subdomain = requestedSubdomain;
 						}
