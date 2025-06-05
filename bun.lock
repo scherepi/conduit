@@ -5,6 +5,7 @@
       "name": "conduit",
       "dependencies": {
         "chalk": "^5.4.1",
+        "commander": "^14.0.0",
         "conduit": "file:",
         "ky": "^1.8.1",
         "meow": "^13.2.0",
@@ -26,6 +27,8 @@
     "bun-types": ["bun-types@1.2.15", "", { "dependencies": { "@types/node": "*" } }, "sha512-NarRIaS+iOaQU1JPfyKhZm4AsUOrwUOqRNHY0XxI8GI8jYxiLXLcdjYMG9UKS+fwWasc1uw1htV9AX24dD+p4w=="],
 
     "chalk": ["chalk@5.4.1", "", {}, "sha512-zgVZuo2WcZgfUEmsn6eO3kINexW8RAE4maiQ8QNs8CtpPCSyMiYsULR3HQYkm3w8FIA3SberyMJMSldGsW+U3w=="],
+
+    "commander": ["commander@14.0.0", "", {}, "sha512-2uM9rYjPvyq39NwLRqaiLtWHyDC1FvryJDa2ATTVims5YAS4PupsEQsDvP14FqhFr0P49CYDugi59xaxJlTXRA=="],
 
     "conduit": ["conduit@file:", { "dependencies": { "conduit": "file:", "ky": "^1.8.1", "meow": "^13.2.0", "prettier": "^3.5.3" }, "devDependencies": { "@types/bun": "^1.2.15" }, "peerDependencies": { "typescript": "^5" } }],
 

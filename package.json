@@ -11,6 +11,7 @@
 	},
 	"dependencies": {
 		"chalk": "^5.4.1",
+		"commander": "^14.0.0",
 		"conduit": "file:",
 		"ky": "^1.8.1",
 		"meow": "^13.2.0",
