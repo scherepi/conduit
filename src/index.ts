@@ -92,7 +92,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 
 function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
 	const portListener = startListener(0, initiatingSocket);
-	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
+	// addReverseProxy(subdomain, portListener ? portListener.port : 65536);
 	return portListener;
 }
 
@@ -222,7 +222,9 @@ async function main() {
 							socket.write(response);
 
 							socket.data.listener = listener;
+							socket.data.port = listener.port;
 							socket.data.subdomain = requestedSubdomain;
+							socket.data.hasRequestedHome = true;
 						}
 					}
 				}
