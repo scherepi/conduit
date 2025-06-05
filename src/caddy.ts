@@ -56,7 +56,7 @@ export async function initCaddy(certFile: string, keyFile: string) {
         const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
             json: baseConfig,
         });
-
+        
         console.log(`Initialized Caddy configuration with pre-existing certificate.`);
         return response.json();
     } catch (error: any) {

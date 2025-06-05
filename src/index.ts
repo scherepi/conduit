@@ -1,6 +1,6 @@
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
-
+import { appropiateLogs } from "./functions"
 export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
 const controlPort = 4225;
 export const caddyPort = 2019; // the caddy admin port
@@ -37,15 +37,16 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 		// The socket that is being passed here is the one that's between the reverse proxy
 		socket: {
 			open(socket) {
-				console.log("got a connection on the listener");
+				appropiateLogs(true,"got a connection on the listener")
+			
 				try {
 					// generate a random 32-bit connection ID
 					socket.data = {
 						connectionId: crypto.getRandomValues(new Uint32Array(1))[0] as number,
 					};
-					console.log(
-						`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
-					);
+					appropiateLogs(true,`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
+)
+				
 
 					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, null);
 					intiatingSocket.write(msg);
@@ -240,8 +241,8 @@ async function main() {
 			},
 			open(socket) {
 				// Triggers on receiving new connection to listener server
-				console.log(`New connection from ${socket.remoteAddress}:${socket.remotePort}`);
-
+			
+				appropiateLogs(true, `New connection from ${socket.remoteAddress}:${socket.remotePort}`)
 				socket.data = {
 					hasRequestedHome: false,
 					port: null,
@@ -252,8 +253,7 @@ async function main() {
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener
-				console.log(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
-
+				appropiateLogs(true,`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`)
 				if (socket.data.listener) {
 					socket.data.listener.stop();
 					if (socket.data.port) {
@@ -279,5 +279,13 @@ async function main() {
 
 	console.log(`Conduit server listening on port ${controlPort}`);
 }
+
+
+// Just testing the logging component
+
+appropiateLogs(true, "All went well")
+
+appropiateLogs(false, "This error also occured")
+
 
 main();
