@@ -6,6 +6,7 @@ import MessageParser, {
 	encodeMessage,
 	MESSAGE_TYPE,
 	PORT_STATUS,
+	SUBDOMAIN_STATUS
 } from "./messages";
 
 const cli = meow(
@@ -131,8 +132,18 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 								`Tell your friends to visit ${hostname}:${assignedPort} to see your work!`
 							);
 							break;
+						case MESSAGE_TYPE.SUBDOMAIN_RESPONSE:
+							const subdomainStatus = parsedMessage.payload ? parsedMessage.payload[0] : 1
+							// this message is received when the server reports the availability of a subdomain to the client.
+							if (subdomainStatus == SUBDOMAIN_STATUS.SUCCESS) {
+								console.log(`Successfully acquired subdomain ${flags.subdomain}.${hostname}`);
+							} else if (subdomainStatus == SUBDOMAIN_STATUS.UNAVAILABLE) {
+								console.error("Unable to acquire subdomain. Please try a different subdomain or use a remote port.");
+								process.exit(1);
+							}
+							break;
 						case MESSAGE_TYPE.CONNECTION_CLOSED:
-							// We receive this message when the
+							// Can be safely ignored.
 							break;
 						case MESSAGE_TYPE.KEEPALIVE:
 							// We can safely ignore this message type.
