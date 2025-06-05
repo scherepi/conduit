@@ -79,6 +79,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 			data(_socket, data) {
 				// called on the receiving of new data from the conduit
 				parser.addData(data);
+				console.log("got data from server");
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
 					switch (parsedMessage.messageType) {
@@ -88,7 +89,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 							);
 							break;
 						case MESSAGE_TYPE.NEW_CONNECTION:
-							establishLocalTunnel(parsedMessage.connectionId, flags.localPort ? flags.localPort : 0, flags.silentMode ? true : false);
+							establishLocalTunnel(parsedMessage.connectionId, flags.localPort ? flags.localPort : 0, false);
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
 							const portStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
@@ -158,6 +159,7 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 				}
 			},
 			open(socket) {
+				console.log("connected to server");
 				// called on the opening of a new connection to the conduit
 				// first step is to request our port on the conduit server
 				if (flags.remotePort) {
@@ -201,21 +203,19 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 
 async function establishLocalTunnel(connectionId: number, localPort: number, silent: boolean) {
 	localTunnels[connectionId] = await Bun.connect({
-		hostname: "localhost",
+		hostname: "conduit.ws",
 		port: localPort,
 
 		socket: {
 			data(_socket, data) {
 				// whenever we receive data from the local port, encode it with the connection ID and pass it to the conduit
-				if (!silent) {
-					console.log("Data received from local port:", data);
-				}
+				console.log("Data received from local port:", data);
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.DATA, data);
 				conduitSocket?.write(encodedMessage);
 			},
 			open(_socket) {
 				// called when the local tunnel is established
-				if (!silent) { console.log("Established local tunnel."); }
+				console.log("Established local tunnel.");
 				// TODO: implement parity here, make sure server knows to wait til local tunnel is created
 			},
 			close(_socket, error) {

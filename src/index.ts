@@ -37,6 +37,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 		// The socket that is being passed here is the one that's between the reverse proxy
 		socket: {
 			open(socket) {
+				console.log("got a connection on the listener");
 				try {
 					// generate a random 32-bit connection ID
 					socket.data = {
@@ -66,6 +67,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 				// Forward the data back to the initiating socket
 				const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.DATA, data);
 				intiatingSocket.write(msg);
+				console.log("send msg to client");
 			},
 			close(socket) {
 				console.log(
@@ -229,9 +231,6 @@ async function main() {
 				for (const message of socket.data.parser.parseMessages()) {
 					if (message.messageType !== MESSAGE_TYPE.DATA) continue; // only handle data messages-- nothing else should come through
 
-					console.log(activeConnections);
-					console.log(socket.data);
-					console.log(message);
 					activeConnections
 						.get(socket.data.port as number)!
 						[message.connectionId]?.write(message.payload || new Uint8Array());
