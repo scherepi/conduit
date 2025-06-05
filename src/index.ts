@@ -112,7 +112,7 @@ async function log(error: string) {
 
 async function main() {
 	try {
-		await initCaddy("domain.cert.pem", "private.key.pem");
+		await initCaddy("/root/sensitive/domain.cert.pem", "/root/sensitive/private.key.pem");
 	} catch (e) {
 		if ((e as any).code == "ConnectionRefused") {
 			console.error("Failed to connect to Caddy. Is it running?");
