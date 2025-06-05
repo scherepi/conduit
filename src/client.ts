@@ -5,8 +5,7 @@ import MessageParser, {
 	decodeMessage,
 	encodeMessage,
 	MESSAGE_TYPE,
-	PORT_STATUS,
-	SUBDOMAIN_STATUS
+	REQUEST_STATUS,
 } from "./messages";
 
 const cli = meow(
@@ -93,14 +92,14 @@ async function connectToConduit(hostname: string, flags: typeof cli.flags) {
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
 							const portStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
-							if (portStatus == PORT_STATUS.SUCCESS) {
+							if (portStatus == REQUEST_STATUS.SUCCESS) {
 								// This means that the server gave us the port we requested
 								assignedPort = assignedPort;
 								console.log("Successfully connected to server on port " + assignedPort);
 								console.log(
 									`You (or your friends) should be able to access it at ${hostname}:${assignedPort}`
 								);
-							} else if (portStatus == PORT_STATUS.UNAVAILABLE) {
+							} else if (portStatus == REQUEST_STATUS.UNAVAILABLE) {
 								// TODO: review for suitability lolll
 								console.error("Sorry babygworl, the server doesn't have your port available.");
 								if (!flags.silentMode) {

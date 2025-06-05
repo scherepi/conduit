@@ -1,5 +1,5 @@
 import { initCaddy } from "./caddy";
-import MessageParser, { encodeMessage, MESSAGE_TYPE, PORT_STATUS } from "./messages";
+import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
 
 export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
 const controlPort = 4225;
@@ -135,7 +135,7 @@ async function main() {
 						const response = encodeMessage(
 							0,
 							MESSAGE_TYPE.PORT_RESPONSE,
-							new Uint8Array([PORT_STATUS.UNAVAILABLE])
+							new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
 						);
 						socket.write(response);
 					} else {
@@ -145,7 +145,7 @@ async function main() {
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.PORT_RESPONSE,
-								new Uint8Array([PORT_STATUS.UNAVAILABLE])
+								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
 							);
 							socket.write(response);
 							return;
@@ -167,7 +167,7 @@ async function main() {
 							response = encodeMessage(
 								0,
 								MESSAGE_TYPE.PORT_RESPONSE,
-								new Uint8Array([PORT_STATUS.SUCCESS])
+								new Uint8Array([REQUEST_STATUS.SUCCESS])
 							);
 						}
 						socket.write(response);
