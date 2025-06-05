@@ -192,4 +192,4 @@ async function establishLocalTunnel(connectionId: number, localPort: number) {
 
 
 console.log("Testing connection to server");
-connectToConduit("localhost", 8080, 8085);
+connectToConduit("conduit.ws", 8080, 8080);

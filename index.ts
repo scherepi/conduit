@@ -1,7 +1,10 @@
 import MessageParser, { encodeMessage, MESSAGE_TYPE, PORT_STATUS } from "./messages";
+import ky from "ky";
 
-const controlPort: number = 4225
-const logPath: string = "conduit_log.txt"
+const hostname = "conduit.ws"; // for http/https subdomains only, not ports
+const controlPort = 4225;
+const caddyPort = 2019 // the caddy admin port
+const logPath: string = "conduit_log.txt";
 
 /*
 - gets a connection from a client
@@ -22,6 +25,7 @@ type ClientData = {
 type ServerListenerData = { connectionId: number };
 
 const portsInUse: Set<number> = new Set();
+portsInUse.add(caddyPort); // just in case
 const activeConnections: Map<number, {[connectionId: number]: Bun.Socket<ServerListenerData>}> = new Map(); // the outer key is the port, the inner key is the connection ID
 
 /*
@@ -89,8 +93,6 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 }
 
 
-
-
 async function log(error: string) {
     // code to write errors to log file, thanks https://blog.stackademic.com/bun-1-0-logging-requests-to-an-output-file-50e54a7393c9
     try {
@@ -106,91 +108,152 @@ async function log(error: string) {
     }
 }
 
-Bun.listen<ClientData>({
-    hostname: "0.0.0.0",
-    port: controlPort,
-    socket: {
-        data(socket, data) {
-            socket.data.parser.addData(data);
-
-            // if the client has yet to request a port, handle that before anything else
-            while (!socket.data.hasRequestedPort) {
-                const message = socket.data.parser.parseMessage();
-                if (!message) continue; // no complete message yet, wait for more data
-                if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
-
-                //TODO: implement port seeking
-                const requestedPort = message.payload ? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0) : 0;
-
-                if (portsInUse.has(requestedPort)) {
-                    // port is already in use, send an error response
-                    const response = encodeMessage(0, MESSAGE_TYPE.PORT_RESPONSE, new Uint8Array([PORT_STATUS.UNAVAILABLE]));
-                    socket.write(response);
-                } else {
-                    const listener = startListener(requestedPort, socket);
-                    if (!listener) { // this should never happen, but if something goes wrong just say the port is unavailable
-                        const response = encodeMessage(0, MESSAGE_TYPE.PORT_RESPONSE, new Uint8Array([PORT_STATUS.UNAVAILABLE]));
-                        socket.write(response);
-                        return;
+async function initCaddy() {
+    // clear the caddy config and set up our own
+    const baseConfig = {
+        apps: {
+            http: {
+                servers: {
+                    conduit: {
+                        listen: [":80", ":443"],
+                        routes: [
+                            {
+                                match: [{ host: [hostname] }],
+                                handle: [{
+                                    handler: "static_response",
+                                    headers: {
+                                        Location: ["https://github.com/scherepi/conduit"]
+                                    },
+                                    status_code: 302
+                                }]
+                            }
+                        ],
+                        tls_connection_policies: [{}]
                     }
-
-                    socket.data.listener = listener;
-                    socket.data.port = listener.port;
-
-                    // port is available, tell the client to move on
-                    let response;
-                    if (requestedPort == 0) {
-                        // If port was randomly assigned, broadcast the assignment to the user
-                        response = encodeMessage(0, MESSAGE_TYPE.PORT_ASSIGNED, new Uint8Array([listener.port >> 8, listener.port & 0xFF]));
-                    } else {
-                        response = encodeMessage(0, MESSAGE_TYPE.PORT_RESPONSE, new Uint8Array([PORT_STATUS.SUCCESS]));
-                    }
-                    socket.write(response);
-                    socket.data.hasRequestedPort = true;
+                }
+            },
+            tls: {
+                automation: {
+                    policies: [{
+                        subjects: [hostname],
+                        issuer: {
+                            module: "internal"
+                        }
+                    }]
                 }
             }
-
-            // if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
-            for (const message of socket.data.parser.parseMessages()) {
-                if (message.messageType !== MESSAGE_TYPE.DATA) continue; // only handle data messages-- nothing else should come through
-
-                activeConnections.get(socket.data.port as number)![message.connectionId]?.write(message.payload || new Uint8Array());
-            }
-        },
-        open(socket) {
-            // Triggers on receiving new connection to listener server
-            console.log(`New connection from ${socket.remoteAddress}:${socket.remotePort}`);
-            
-            socket.data = {
-                hasRequestedPort: false,
-                port: null,
-                parser: new MessageParser(),
-                listener: null,
-            }
-        },
-        close(socket, _error) {
-            // when the connection closes, we need to terminate the associated listener
-            console.log(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
-            
-            if (socket.data.listener) {
-                socket.data.listener.stop();
-                console.log(`Listener on port ${socket.data.port} closed.`);
-                portsInUse.delete(socket.data.port as number);
-            }
-        },
-        drain(_socket) {
-            //TODO: implement
-        },
-        error(_socket, error) {
-            console.error(error);
-            
-            log(error.message);
         }
-    },
-    // tls: {
-    //     key: Bun.file("./conduit.pass.key"),
-    //     cert: Bun.file("./conduit.crt")
-    // }
-})
+    };
 
-console.log(`Conduit server listening on port ${controlPort}`);
+    try {
+        const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
+            json: baseConfig,
+        });
+            
+        console.log(`✅ Configuration reset with redirect from ${hostname} to GitHub`);
+        return response.json();
+    } catch (e) {
+        console.error("Failed to reset Caddy config");
+        if ((e as any).response) {
+            const errorText = await (e as any).response.text();
+            console.error('Error details:', errorText);
+        }
+        throw e;
+    }
+}
+
+
+async function main() {
+    try {
+        await initCaddy();
+    } catch (e) {
+        console.error("Failed to initialize Caddy:", e);
+    }
+
+    Bun.listen<ClientData>({
+        hostname: "0.0.0.0",
+        port: controlPort,
+        socket: {
+            data(socket, data) {
+                socket.data.parser.addData(data);
+    
+                // if the client has yet to request a port, handle that before anything else
+                while (!socket.data.hasRequestedPort) {
+                    const message = socket.data.parser.parseMessage();
+                    if (!message) continue; // no complete message yet, wait for more data
+                    if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
+    
+                    //TODO: implement port seeking
+                    const requestedPort = message.payload ? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0) : 0;
+    
+                    if (portsInUse.has(requestedPort)) {
+                        // port is already in use, send an error response
+                        const response = encodeMessage(0, MESSAGE_TYPE.PORT_RESPONSE, new Uint8Array([PORT_STATUS.UNAVAILABLE]));
+                        socket.write(response);
+                    } else {
+                        const listener = startListener(requestedPort, socket);
+                        if (!listener) { // this should never happen, but if something goes wrong just say the port is unavailable
+                            const response = encodeMessage(0, MESSAGE_TYPE.PORT_RESPONSE, new Uint8Array([PORT_STATUS.UNAVAILABLE]));
+                            socket.write(response);
+                            return;
+                        }
+    
+                        socket.data.listener = listener;
+                        socket.data.port = listener.port;
+    
+                        // port is available, tell the client to move on
+                        let response;
+                        if (requestedPort == 0) {
+                            // If port was randomly assigned, broadcast the assignment to the user
+                            response = encodeMessage(0, MESSAGE_TYPE.PORT_ASSIGNED, new Uint8Array([listener.port >> 8, listener.port & 0xFF]));
+                        } else {
+                            response = encodeMessage(0, MESSAGE_TYPE.PORT_RESPONSE, new Uint8Array([PORT_STATUS.SUCCESS]));
+                        }
+                        socket.write(response);
+                        socket.data.hasRequestedPort = true;
+                    }
+                }
+    
+                // if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
+                for (const message of socket.data.parser.parseMessages()) {
+                    if (message.messageType !== MESSAGE_TYPE.DATA) continue; // only handle data messages-- nothing else should come through
+    
+                    activeConnections.get(socket.data.port as number)![message.connectionId]?.write(message.payload || new Uint8Array());
+                }
+            },
+            open(socket) {
+                // Triggers on receiving new connection to listener server
+                console.log(`New connection from ${socket.remoteAddress}:${socket.remotePort}`);
+                
+                socket.data = {
+                    hasRequestedPort: false,
+                    port: null,
+                    parser: new MessageParser(),
+                    listener: null,
+                }
+            },
+            close(socket, _error) {
+                // when the connection closes, we need to terminate the associated listener
+                console.log(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
+                
+                if (socket.data.listener) {
+                    socket.data.listener.stop();
+                    console.log(`Listener on port ${socket.data.port} closed.`);
+                    portsInUse.delete(socket.data.port as number);
+                }
+            },
+            drain(_socket) {
+                //TODO: implement
+            },
+            error(_socket, error) {
+                console.error(error);
+                
+                log(error.message);
+            }
+        },
+    })
+    
+    console.log(`Conduit server listening on port ${controlPort}`);
+}
+
+main();

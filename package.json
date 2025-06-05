@@ -10,6 +10,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "ky": "^1.8.1",
     "meow": "^13.2.0"
   }
 }
