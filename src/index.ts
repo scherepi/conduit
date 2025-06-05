@@ -229,6 +229,9 @@ async function main() {
 				for (const message of socket.data.parser.parseMessages()) {
 					if (message.messageType !== MESSAGE_TYPE.DATA) continue; // only handle data messages-- nothing else should come through
 
+					console.log(activeConnections);
+					console.log(socket.data);
+					console.log(message);
 					activeConnections
 						.get(socket.data.port as number)!
 						[message.connectionId]?.write(message.payload || new Uint8Array());
