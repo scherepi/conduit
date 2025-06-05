@@ -91,6 +91,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
 	const portListener = startListener(0, initiatingSocket);
 	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
+	return portListener;
 }
 
 async function log(error: string) {
@@ -196,6 +197,7 @@ async function main() {
 							);
 							socket.write(response);
 						} else {
+							subdomainsInUse.add(requestedSubdomain);
 							const listener = startSubdomainListener(requestedSubdomain, socket);
 							if (!listener) {
 								// TODO: make the server accountable to the client for errors
@@ -242,8 +244,13 @@ async function main() {
 
 				if (socket.data.listener) {
 					socket.data.listener.stop();
-					console.log(`Listener on port ${socket.data.port} closed.`);
-					portsInUse.delete(socket.data.port as number);
+					if (socket.data.port) {
+						console.log(`Listener on port ${socket.data.port} closed.`);
+						portsInUse.delete(socket.data.port as number);
+					} else if (socket.data.subdomain) {
+						console.log(`Listener on subdomain ${socket.data.subdomain} closed.`);
+						subdomainsInUse.delete(socket.data.subdomain as string);
+					}
 				}
 			},
 			drain(_socket) {
