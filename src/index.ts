@@ -43,16 +43,16 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 						connectionId: crypto.getRandomValues(new Uint32Array(1))[0] as number,
 					};
 					console.log(
-						`New connection established on port ${port} [connectionId: ${socket.data.connectionId}]`
+						`New connection established on port ${socket.remotePort} [connectionId: ${socket.data.connectionId}]`
 					);
 
 					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, null);
 					intiatingSocket.write(msg);
 
-					if (!activeConnections.has(port)) {
-						activeConnections.set(port, {});
+					if (!activeConnections.has(socket.remotePort)) {
+						activeConnections.set(socket.remotePort, {});
 					}
-					activeConnections.get(port)![socket.data.connectionId] = socket;
+					activeConnections.get(socket.remotePort)![socket.data.connectionId] = socket;
 				} catch (e) {
 					console.error("Something went wrong while opening the socket:\n", e);
 				}
@@ -60,7 +60,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 			data(socket, data) {
 				// Handle incoming data from this socket
 				console.log(
-					`Data received on port ${port} [connectionId: ${socket.data.connectionId}]:`,
+					`Data received on port ${socket.remotePort} [connectionId: ${socket.data.connectionId}]:`,
 					data
 				);
 				// Forward the data back to the initiating socket
@@ -69,14 +69,14 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 			},
 			close(socket) {
 				console.log(
-					`Connection closed on port ${port} [connectionId: ${socket.data.connectionId}]`
+					`Connection closed on port ${socket.remotePort} [connectionId: ${socket.data.connectionId}]`
 				);
-				portsInUse.delete(port);
+				portsInUse.delete(socket.remotePort);
 
 				const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.CONNECTION_CLOSED, null);
 				intiatingSocket.write(msg);
 
-				activeConnections.get(port)?.[socket.data.connectionId]?.end();
+				activeConnections.get(socket.remotePort)?.[socket.data.connectionId]?.end();
 			},
 		},
 	});
