@@ -8,6 +8,7 @@ import MessageParser, {
 	REQUEST_STATUS,
 } from "./messages";
 
+/*
 const cli = meow(
 	// USAGE MESSAGE
 
@@ -49,7 +50,7 @@ const cli = meow(
 		},
 	}
 );
-
+*/
 const hostname = cli.input.at(0); // the first argument passed to the CLI
 const conduitPort: number = 4225; // hard-coded server control port - "HACK" on a phone!
 

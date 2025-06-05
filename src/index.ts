@@ -14,6 +14,9 @@ program
 	.option('-p, --remotePort <portNumber>', 'the remote port to request from the server (optional)')
 	.option('-d, --subdomain <subdomain>', 'the subdomain to request from the server. -p and -d are mutually exclusive.')
 	.option('-v, --verbosity <level>', 'set verbosity level', '3')
+	.action((remoteHost, options, command) => {
+		
+	})
 
 // conduit server <bindAddress> -t tunnelAddress -m minimumPort -M maximumPort 
 program.command('server')
@@ -22,6 +25,11 @@ program.command('server')
 	.option('-t, --tunnelBind', 'the address to bind tunnels to.', '0.0.0.0')
 	.option('-m, --minPort', 'the minimum port of the port range on which you want to allow incoming conections', '1024')
 	.option('-M, --maxPort', 'the maximum port of the port range on which you want to allow incoming connections', '65535')
+	.action((bindAddress, options, command) => {
+		if (options.tunnelBind) {
+
+		}
+	})
 
 
 program.parse();
