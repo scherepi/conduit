@@ -136,47 +136,30 @@ async function initCaddy() {
 								],
 							},
 						],
-						tls_connection_policies: [{}],
 					},
-				},
-			},
-			tls: {
-				automation: {
-					policies: [
-						{
-							subjects: [hostname],
-							issuer: {
-								module: "internal",
-							},
-						},
-					],
 				},
 			},
 		},
 	};
 
-	try {
-		const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
-			json: baseConfig,
-		});
+	const response = await ky.post(`http://localhost:${caddyPort}/config/`, {
+		json: baseConfig,
+	});
 
-		console.log(`✅ Configuration reset with redirect from ${hostname} to GitHub`);
-		return response.json();
-	} catch (e) {
-		console.error("Failed to reset Caddy config");
-		if ((e as any).response) {
-			const errorText = await (e as any).response.text();
-			console.error("Error details:", errorText);
-		}
-		throw e;
-	}
+	console.log(`Initialized Caddy confguration.`);
+	return response.json();
 }
 
 async function main() {
 	try {
 		await initCaddy();
 	} catch (e) {
-		console.error("Failed to initialize Caddy:", e);
+		if ((e as any).code == "ConnectionRefused") {
+			console.error("Failed to connect to Caddy. Is it running?");
+		} else {
+			console.error("An error occurred while initializing Caddy:\n", e);
+			console.log(await e.response.text());
+		}
 	}
 
 	Bun.listen<ClientData>({

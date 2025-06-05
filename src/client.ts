@@ -19,7 +19,7 @@ import MessageParser, {
 	encodeMessage,
 	MESSAGE_TYPE,
 	PORT_STATUS,
-} from "./messages.ts";
+} from "./messages";
 const cli = meow(
 	// USAGE MESSAGE
 
