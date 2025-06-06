@@ -95,11 +95,11 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 	return listener;
 }
 
-function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
-	const portListener = startListener(0, initiatingSocket);
-	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
-	return portListener;
-}
+// function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
+// 	const portListener = startListener(0, initiatingSocket);
+// 	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
+// 	return portListener;
+// }
 
 export async function startServer(
 	listenAddress: string,
@@ -122,6 +122,9 @@ export async function startServer(
 			console.log(await (e as { response: Response }).response.text());
 		}
 	}
+
+
+	
 
 	Bun.listen<ClientData>({
 		hostname: listenAddress,
@@ -188,48 +191,6 @@ export async function startServer(
 						socket.write(response);
 						socket.data.hasRequestedPort = true;
 					}
-
-					// } else if (message.messageType == MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
-					// 	// Handle subdomain requests here
-					// 	const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
-
-					// 	if (subdomainsInUse.has(requestedSubdomain)) {
-					// 		// send the client a message that says that subdomain is unavailable
-					// 		const response = encodeMessage(
-					// 			0,
-					// 			MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-					// 			new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-					// 		);
-					// 		socket.write(response);
-					// 	} else {
-					// 		subdomainsInUse.add(requestedSubdomain);
-					// 		const listener = startSubdomainListener(requestedSubdomain, socket);
-					// 		if (!listener) {
-					// 			// TODO: make the server accountable to the client for errors
-					// 			// something has gone horribly wrong.
-					// 			const response = encodeMessage(
-					// 				0,
-					// 				MESSAGE_TYPE.PORT_RESPONSE,
-					// 				new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-					// 			)
-					// 			socket.write(response);
-					// 			return;
-					// 		}
-
-					// 		socket.data.listener = listener;
-					// 		socket.data.port = listener.port;
-
-					// 		const response = encodeMessage(
-					// 			0,
-					// 			MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-					// 			new Uint8Array([REQUEST_STATUS.SUCCESS])
-					// 		);
-					// 		socket.write(response);
-					// 		socket.data.hasRequestedPort = true;
-
-					// 		socket.data.subdomain = requestedSubdomain;
-					// 	}
-					// }
 				}
 
 				// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
@@ -281,7 +242,8 @@ export async function startServer(
 				};
 			},
 			close(socket, _error) {
-				// when the connection closes, we need to terminate the associated listener
+				// when the connection closes, we need to terminate the associated listener\
+				
 				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
 				if (socket.data.listener) {
 					socket.data.listener.stop();
@@ -291,11 +253,17 @@ export async function startServer(
 					} else if (socket.data.subdomain) {
 						logger.info(`Listener on subdomain ${socket.data.subdomain} closed.`);
 						removeReverseProxy(socket.data.subdomain);
-						subdomainsInUse.delete(socket.data.subdomain as string);
+						// setTimeout(() => {
+							// This is so lets say their lights flicker or something like that and the server crashes. Their subdomain can't just be instantly swooped and they'd have 5 minutes to get it back.
+							subdomainsInUse.delete(socket.data.subdomain as string);
+						// }, 300*1000)
+						
 					}
 				}
 			},
 			drain(_socket) {
+
+
 				//TODO: implement
 			},
 			error(_socket, error) {

@@ -65,8 +65,11 @@ const parser = new MessageParser(); // parser for incoming messages from the con
 export async function connectToConduit(
 	hostname: string,
 	localPort: number,
+	keepAlive: boolean,
 	remotePort?: number | null,
-	subdomain?: string
+	subdomain?: string,
+	
+	
 ) {
 	if (remotePort && subdomain) {
 		logger.error(
@@ -236,6 +239,23 @@ export async function connectToConduit(
 			},
 		},
 	});
+
+
+	if (!keepAlive) {
+
+		// If the keepAlive is false, it will only be up and running for 6 hours
+
+		try {
+			setTimeout(() => {
+				conduitSocket?.end()
+			},3600*24*1000)
+		} catch(e) {
+			logger.error("You probably ended your connection earlier. Try again next time.");
+		}
+		
+
+
+	}
 }
 
 // connection from the conduit client to the local port

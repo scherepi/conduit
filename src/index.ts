@@ -27,6 +27,8 @@ if (!server) {
 			"The subdomain to request from the server. -p and -d are mutually exclusive."
 		)
 		.option("-v, --verbose", "Enable verbose output", false)
+		.option("-k, --keepAlive", 
+			"Keeps this connection alive indefinitely", false)
 		.action((remoteHost, options, _command) => {
 			logger.verbose = options.verbose;
 
@@ -35,10 +37,10 @@ if (!server) {
 				logger.error("Rerun the command with EITHER the subdomain argument or the remote port.");
 			}
 			if (options.remotePort) {
-				connectToConduit(remoteHost, parseInt(options.localPort), parseInt(options.remotePort));
+				connectToConduit(remoteHost, parseInt(options.localPort),  options.keepAlive,parseInt(options.remotePort), undefined,);
 			}
 			if (options.subdomain) {
-				connectToConduit(remoteHost, parseInt(options.localPort), null, options.subdomain);
+				connectToConduit(remoteHost, parseInt(options.localPort), options.keepAlive,null, options.subdomain);
 			}
 		});
 }
