@@ -1,0 +1,5 @@
+src/
+*.ts
+node_modules/
+bun.lockb
+dist/  # remove this line if you're using dist/ in the CLI!
