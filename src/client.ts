@@ -71,17 +71,6 @@ export async function connectToConduit(
 	
 	
 ) {
-	if (remotePort && subdomain) {
-		logger.error(
-			"You can't pick a subdomain and a remote port - your greed is disgusting. Just pick one."
-		);
-		process.exit(1);
-	}
-	if (!localPort) {
-		logger.error("You need to at least specify the local port, bonehead.");
-		process.exit(1);
-	}
-
 	logger.await(`Connecting to conduit server at ${hostname}:${conduitPort}...`);
 	conduitSocket = await Bun.connect({
 		hostname: hostname, // hostname for the remote conduit server
@@ -206,9 +195,12 @@ export async function connectToConduit(
 					);
 					socket.write(portRequestMessage);
 					assignedPort = remotePort; // set the assigned port to the remote port we requested
-				} else if (subdomain) {
-					// request a random port, then a subdomain
+				} else {
 					socket.write(encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null));
+				}
+				
+				// request a subdomain if one is provided
+				if (subdomain) {
 					socket.write(
 						encodeMessage(
 							0,
@@ -216,10 +208,6 @@ export async function connectToConduit(
 							new Uint8Array(new TextEncoder().encode(subdomain))
 						)
 					);
-				} else {
-					// just request a random port
-					const portRequestMessage = encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null);
-					socket.write(portRequestMessage);
 				}
 			},
 
