@@ -27,11 +27,13 @@ program
 		"-d, --subdomain <SUBDOMAIN>",
 		"The subdomain to request from the server"
 	)
+	.option("-k, --keepAlive", 
+		"Keeps this connection alive indefinitely", false)
 	.option("-v, --verbose", "Enable verbose output")
 	.action((port, options) => {
 		logger.verbose = options.verbose ? true : false;;
 
-		connectToConduit(options.to, parseInt(port), parseInt(options.remotePort) || null, options.subdomain);
+		connectToConduit(options.to, parseInt(port), options.keepAlive, parseInt(options.remotePort) || null, options.subdomain);
 	});
 
 // conduit server <bindAddress> -t tunnelAddress -m minimumPort -M maximumPort
