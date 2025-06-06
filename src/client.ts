@@ -199,13 +199,18 @@ async function connectToConduit(hostname: string, localPort:number, remotePort?:
 					socket.write(portRequestMessage);
 					assignedPort = remotePort; // set the assigned port to the remote port we requested
 				} else if (subdomain) {
-					const portRequestMessage = encodeMessage(
+					// request a random port, then a subdomain
+					socket.write(encodeMessage(
+						0,
+						MESSAGE_TYPE.PORT_REQUEST,
+						null
+					));
+					socket.write(encodeMessage(
 						0,
 						MESSAGE_TYPE.SUBDOMAIN_REQUEST,
 						new Uint8Array(new TextEncoder().encode(subdomain))
-					);
-					socket.write(portRequestMessage);
-				}else {
+					));
+				} else { // just request a random port
 					const portRequestMessage = encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null);
 					socket.write(portRequestMessage);
 				}
