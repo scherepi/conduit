@@ -1,10 +1,9 @@
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
+import logger from "./logger";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
-import { appropiateLogs } from "./logs"
 export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
 const controlPort = 4225;
 export const caddyPort = 2019; // the caddy admin port
-const logPath: string = "conduit_log.txt";
 
 // status info about a client connection
 type ClientData = {
@@ -26,7 +25,7 @@ const activeConnections: Map<number, { [connectionId: number]: Bun.Socket<Server
 
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 	if (portsInUse.has(port) || isNaN(port)) {
-		console.error(`Port ${port} is already in use or invalid.`);
+		logger.error(`Port ${port} is already in use or invalid.`);
 		return null;
 	}
 
@@ -37,14 +36,14 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 		// The socket that is being passed here is the one that's between the reverse proxy
 		socket: {
 			open(socket) {
-				appropiateLogs(true,"got a connection on the listener")
+				logger.infoVerbose("Got a connection on the listener")
 			
 				try {
 					// generate a random 32-bit connection ID
 					socket.data = {
 						connectionId: crypto.getRandomValues(new Uint32Array(1))[0] as number,
 					};
-					appropiateLogs(true,`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
+					logger.infoVerbose(`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
 )
 				
 
@@ -56,22 +55,21 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 					}
 					activeConnections.get(socket.localPort)![socket.data.connectionId] = socket;
 				} catch (e) {
-					console.error("Something went wrong while opening the socket:\n", e);
+					logger.error("Something went wrong while opening the socket:\n", e);
 				}
 			},
 			data(socket, data) {
 				// Handle incoming data from this socket
-				console.log(
+				logger.debugVerbose(
 					`Data received on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]:`,
 					data
 				);
 				// Forward the data back to the initiating socket
 				const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.DATA, data);
 				intiatingSocket.write(msg);
-				console.log("send msg to client");
 			},
 			close(socket) {
-				console.log(
+				logger.debugVerbose(
 					`Connection closed on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
 				);
 				portsInUse.delete(socket.localPort);
@@ -86,7 +84,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 
 	const realPort = listener.port;
 	portsInUse.add(realPort);
-	console.log(`Starting listener on port ${realPort}`);
+	logger.success(`Starting listener on port ${realPort}`);
 
 	return listener;
 }
@@ -97,30 +95,15 @@ function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<
 	return portListener;
 }
 
-async function log(error: string) {
-	// code to write errors to log file, thanks https://blog.stackademic.com/bun-1-0-logging-requests-to-an-output-file-50e54a7393c9
-	try {
-		const logs = await Bun.file(logPath).text();
-		let date = new Date();
-		const timestamp: string = date.getTime().toString();
-		await Bun.write(logPath, logs.concat(timestamp, ": ", error));
-	} catch (e) {
-		// if log file doesn't exist, write new content
-		let date = new Date();
-		const timestamp: string = date.getTime().toString();
-		await Bun.write(logPath, "".concat(timestamp, ": ", error));
-	}
-}
-
-
 async function main() {
 	try {
 		await initCaddy("/etc/caddy/certs/domain.cert.pem", "/etc/caddy/certs/private.key.pem");
 	} catch (e) {
 		if ((e as any).code == "ConnectionRefused") {
-			console.error("Failed to connect to Caddy. Is it running?");
+			logger.error("Failed to connect to Caddy. Is it running?");
 		} else {
-			console.error("An error occurred while initializing Caddy:\n", e);
+			logger.error("An error occurred while initializing Caddy:");
+			console.log(e);
 			console.log(await (e as { response: Response }).response.text());
 		}
 	}
@@ -267,7 +250,7 @@ async function main() {
 			open(socket) {
 				// Triggers on receiving new connection to listener server
 			
-				appropiateLogs(true, `New connection from ${socket.remoteAddress}:${socket.remotePort}`)
+				logger.success(`New connection from ${socket.remoteAddress}:${socket.remotePort}`)
 				socket.data = {
 					hasRequestedPort: false,
 					port: null,
@@ -278,14 +261,14 @@ async function main() {
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener
-				appropiateLogs(true,`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`)
+				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`)
 				if (socket.data.listener) {
 					socket.data.listener.stop();
 					if (socket.data.port) {
-						console.log(`Listener on port ${socket.data.port} closed.`);
+						logger.info(`Listener on port ${socket.data.port} closed.`);
 						portsInUse.delete(socket.data.port as number);
 					} else if (socket.data.subdomain) {
-						console.log(`Listener on subdomain ${socket.data.subdomain} closed.`);
+						logger.info(`Listener on subdomain ${socket.data.subdomain} closed.`);
 						removeReverseProxy(socket.data.subdomain);
 						subdomainsInUse.delete(socket.data.subdomain as string);
 					}
@@ -295,22 +278,12 @@ async function main() {
 				//TODO: implement
 			},
 			error(_socket, error) {
-				console.error(error);
-
-				log(error.message);
+				logger.error(error);
 			},
 		},
 	});
 
-	console.log(`Conduit server listening on port ${controlPort}`);
+	logger.success(`Conduit server listening on port ${controlPort}`);
 }
-
-
-// Just testing the logging component
-
-appropiateLogs(true, "All went well")
-
-appropiateLogs(false, "This error also occured")
-
 
 main();

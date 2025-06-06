@@ -10,12 +10,13 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"chalk": "^5.4.1",
+		"@types/signale": "^1.4.7",
 		"commander": "^14.0.0",
 		"conduit": "file:",
 		"ky": "^1.8.1",
 		"meow": "^13.2.0",
-		"prettier": "^3.5.3"
+		"prettier": "^3.5.3",
+		"signale": "^1.4.0"
 	},
 	"scripts": {
 		"lint": "prettier --check .",
