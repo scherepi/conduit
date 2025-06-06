@@ -1,5 +1,6 @@
 // Main CLI logic, started by Joaquin 6/5/2025
 import { Command } from 'commander';
+import { runClient } from './client';
 const program = new Command();
 
 program
@@ -15,7 +16,16 @@ program
 	.option('-d, --subdomain <subdomain>', 'the subdomain to request from the server. -p and -d are mutually exclusive.')
 	.option('-v, --verbosity <level>', 'set verbosity level', '3')
 	.action((remoteHost, options, command) => {
-		
+		if (options.remotePort && options.subdomain) {
+			console.error("You can't pick both, doofus!");
+			console.log("Rerun the command with EITHER the subdomain argument or the remote port.");
+		}
+		if (options.remotePort) {
+			runClient(remoteHost, options.localPort, options.verbosity, options.remotePort);
+		}
+		if (options.subdomain) {
+			runClient(remoteHost, options.localPort, options.verbosity, options.subdomain);
+		}
 	})
 
 // conduit server <bindAddress> -t tunnelAddress -m minimumPort -M maximumPort 

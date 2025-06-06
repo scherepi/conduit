@@ -63,7 +63,7 @@ const parser = new MessageParser(); // parser for incoming messages from the con
 let verbosity: number = 0;
 
 
-async function runClient(hostname: string, localPort: number, remotePort?: number, subdomain?: string, verbosityLevel: number) {
+export async function runClient(hostname: string, localPort: number, verbosityLevel: number, remotePort?: number, subdomain?: string) {
 	verbosity = verbosityLevel;
 	if (remotePort) {
 		connectToConduit(hostname, localPort, remotePort);
@@ -71,7 +71,6 @@ async function runClient(hostname: string, localPort: number, remotePort?: numbe
 	if (subdomain) {
 		connectToConduit(hostname, localPort, null, subdomain);
 	}
-	
 }
 
 // the central function that connects to the conduit server
@@ -132,7 +131,7 @@ async function connectToConduit(hostname: string, localPort:number, remotePort?:
 							} else if (portStatus == REQUEST_STATUS.UNAVAILABLE) {
 								// TODO: review for suitability lolll
 								console.error("Sorry babygworl, the server doesn't have your port available.");
-								if (!silentMode) {
+								if (verbosity > 1) {
 									console.log(
 										"Try running the command without specifying a remote port - the server will assign you what's open."
 									);
@@ -152,7 +151,7 @@ async function connectToConduit(hostname: string, localPort:number, remotePort?:
 								console.log("Bugs are an important part of the ecosystem ✨");
 								break;
 							}
-							if (!silentMode){
+							if (verbosity > 1){
 								console.log(
 								`Successfully connected to conduit server. You've been assigned port ${assignedPort}.`
 								);
