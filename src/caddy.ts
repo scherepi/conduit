@@ -24,7 +24,6 @@ export async function initCaddy(certFile: string, keyFile: string) {
                                 ],
                             },
                         ],
-                        tls_connection_policies: [{}],
                     },
                 },
             },
