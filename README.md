@@ -18,6 +18,8 @@ Conduit is a smart utility for sharing local apps with the world, no server depl
 npx conduit-ws 3000
 ```
 
+<a href="https://asciinema.org/a/722341" target="_blank"><img src="https://asciinema.org/a/722341.svg" /></a>
+
 This will publicly expose `localhost:3000` on a random port on `conduit.ws`. Want a subdomain with HTTPS?
 
 ```
