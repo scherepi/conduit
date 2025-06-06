@@ -102,7 +102,7 @@ ${chalk.bold.underline("Example Usage")}:
 program
 	.command("client <PORT>", { isDefault: true })
 	.description("Expose a local port through the conduit server")
-	.requiredOption(
+	.option(
 		"-t, --to <SERVER>",
 		"The conduit server to expose the local port on (default: conduit.ws)"
 	)
@@ -125,12 +125,27 @@ program
 			process.exit(1);
 		}
 
+		const server = options.to || "conduit.ws";
+
+		let subdomain = options.subdomain;
+		if (subdomain) {
+			if (!/^[a-zA-Z0-9-]+$/.test(subdomain)) {
+				logger.error("Subdomain must be alphanumeric (letters, numbers, and hyphens only).");
+				process.exit(1);
+			}
+
+			// foo.conduit.ws -> foo
+			if (subdomain.endsWith(server)) {
+				subdomain = subdomain.slice(0, -server.length - 1);
+			}
+		}
+
 		connectToConduit(
-			options.to || "conduit.ws",
+			server,
 			parseInt(port),
 			options.keepAlive,
 			parseInt(options.remotePort) || null,
-			options.subdomain
+			subdomain
 		);
 	});
 
@@ -168,7 +183,8 @@ program
 			options.bind,
 			options.tunnelBind,
 			parseInt(options.minPort),
-			parseInt(options.maxPort)
+			parseInt(options.maxPort),
+			options.domain,
 		);
 	});
 
