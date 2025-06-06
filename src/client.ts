@@ -169,6 +169,9 @@ export async function connectToConduit(
 									"Unable to acquire subdomain. Please try a different subdomain or use a remote port."
 								);
 								process.exit(1);
+							} else if (subdomainStatus == REQUEST_STATUS.UNSUPPORTED) {
+								logger.error("The server does not support subdomains. Try requesting a port instead.");
+								process.exit(1);
 							}
 							break;
 						case MESSAGE_TYPE.CONNECTION_CLOSED:

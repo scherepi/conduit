@@ -13,6 +13,7 @@ export const MESSAGE_TYPE = {
 export const REQUEST_STATUS = {
 	SUCCESS: 0, // sent when the port requested is available on the server, and not in use by another tunnel.
 	UNAVAILABLE: 1, // sorry, port is taken bbg
+	UNSUPPORTED: 2, // if a subdomain is requested, but the server doesn't support subdomains (no caddy or domain name)
 };
 
 /*

@@ -1,7 +1,6 @@
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
 import logger from "./logger";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
-export const hostname = "conduit.ws"; // for http/https subdomains only, not ports
 const controlPort = 4225;
 export const caddyPort = 2019; // the caddy admin port
 
@@ -99,21 +98,24 @@ export async function startServer(
 	listenAddress: string,
 	tunnelAddress: string,
 	minPort: number,
-	maxPort: number
+	maxPort: number,
+	hostname: string | null,
 ) {
 	tunnelBindAddress = tunnelAddress;
 	minimumPort = minPort;
 	maximumPort = maxPort;
 
-	try {
-		await initCaddy("/etc/caddy/certs/domain.cert.pem", "/etc/caddy/certs/private.key.pem");
-	} catch (e) {
-		if ((e as any).code == "ConnectionRefused") {
-			logger.error("Failed to connect to Caddy. Is it running?");
-		} else {
-			logger.error("An error occurred while initializing Caddy:");
-			console.log(e);
-			console.log(await (e as { response: Response }).response.text());
+	if (hostname) {
+		try {
+			await initCaddy(hostname, "/etc/caddy/certs/domain.cert.pem", "/etc/caddy/certs/private.key.pem");
+		} catch (e) {
+			if ((e as any).code == "ConnectionRefused") {
+				logger.error("Failed to connect to Caddy. Is it running?");
+			} else {
+				logger.error("An error occurred while initializing Caddy:");
+				console.log(e);
+				console.log(await (e as { response: Response }).response.text());
+			}
 		}
 	}
 
@@ -195,6 +197,16 @@ export async function startServer(
 							.get(socket.data.port as number)!
 							[message.connectionId]?.write(message.payload || new Uint8Array());
 					} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
+						if (!hostname) {
+							// if the server doesn't support subdomains, send unsupported
+							socket.write(encodeMessage(
+								0,
+								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+								new Uint8Array([REQUEST_STATUS.UNSUPPORTED])
+							));
+							return;
+						}
+
 						const requestedSubdomain = message.payload
 							? new TextDecoder().decode(message.payload)
 							: "";
@@ -208,7 +220,7 @@ export async function startServer(
 							);
 							socket.write(response);
 						} else {
-							await addReverseProxy(requestedSubdomain, socket.data.port as number);
+							await addReverseProxy(hostname, requestedSubdomain, socket.data.port as number);
 
 							subdomainsInUse.add(requestedSubdomain);
 							socket.data.subdomain = requestedSubdomain;
@@ -243,7 +255,7 @@ export async function startServer(
 					socket.data.listener.stop();
 					if (socket.data.subdomain) {
 						logger.info(`Listener on port ${socket.data.port} closed with subdomain ${socket.data.subdomain}.`);
-						removeReverseProxy(socket.data.subdomain);
+						hostname && removeReverseProxy(hostname, socket.data.subdomain);
 						subdomainsInUse.delete(socket.data.subdomain as string);
 					} else {
 						logger.info(`Listener on port ${socket.data.port} closed.`);

@@ -1,8 +1,8 @@
 import ky from "ky";
-import { caddyPort, hostname } from "./server";
+import { caddyPort } from "./server";
 import logger from "./logger";
 
-export async function initCaddy(certFile: string, keyFile: string) {
+export async function initCaddy(hostname: string, certFile: string, keyFile: string) {
 	// clear the caddy config and set up our own with a pre-existing certificate
 	const baseConfig = {
 		apps: {
@@ -71,7 +71,7 @@ export async function initCaddy(certFile: string, keyFile: string) {
 	}
 }
 
-export async function addReverseProxy(subdomain: string, port: number) {
+export async function addReverseProxy(hostname: string, subdomain: string, port: number) {
 	const config = {
 		match: [{ host: [`${subdomain}.${hostname}`] }],
 		handle: [
@@ -94,7 +94,7 @@ export async function addReverseProxy(subdomain: string, port: number) {
 	}
 }
 
-export async function removeReverseProxy(subdomain: string) {
+export async function removeReverseProxy(hostname: string, subdomain: string) {
 	try {
 		const currentConfig: any[] = await ky
 			.get(`http://localhost:${caddyPort}/config/apps/http/servers/conduit/routes`)
