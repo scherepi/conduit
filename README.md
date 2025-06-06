@@ -5,6 +5,8 @@
 </div>
 <br>
 
+<br>
+
 [![][npm-shield]][npm-link]
 
 <!-- for a divider line -->
