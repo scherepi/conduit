@@ -12,7 +12,7 @@
 	},
 	"dependencies": {
 		"@types/signale": "^1.4.7",
-		"chalk": "^5.4.1",
+		"chalk": "^4.1.2",
 		"commander": "^14.0.0",
 		"conduit": "file:",
 		"ky": "^1.8.1",
@@ -23,6 +23,10 @@
 	"scripts": {
 		"lint": "prettier --check .",
 		"format": "prettier --write .",
-		"dev": "bun ./src/index.ts"
+		"dev": "bun ./src/index.ts",
+		"build": "bun build src/index.ts --outfile dist/index.js --target bun"
+	},
+	"bin": {
+		"conduit": "./dist/index.js"
 	}
 }

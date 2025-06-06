@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { Command } from "commander";
 import { connectToConduit } from "./client";
 import { startServer } from "./server";
