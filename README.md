@@ -110,10 +110,11 @@ Or, if he used the command `conduit 5173 -p 1337` instead, I could go to _condui
 
 Conduit relies on [Caddy](https://caddyserver.com/) for automatically managing HTTPS.
 
-
-<img src="https://assets.hackclub.com/flag-standalone.png" alt="Hack Club Flag" height="64">
+<br>
 
 > *This project is dedicated to [Hack Club](https://hackclub.com).*
+
+<img src="https://assets.hackclub.com/flag-standalone.png" alt="Hack Club Flag" height="64">
 
 [npm-shield]: https://img.shields.io/npm/v/conduit-ws?style=flat-square&color=%23b2ff00
 [npm-link]: https://www.npmjs.com/package/conduit-ws
