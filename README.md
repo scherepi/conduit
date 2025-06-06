@@ -3,6 +3,9 @@
 <img height="300" src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png">
 
 </div>
+<br>
+
+<br>
 
 [![][npm-shield]][npm-link]
 
@@ -14,7 +17,7 @@ Conduit is a smart utility for sharing local apps with the world, no server depl
 
 **Try it out:**
 
-```
+```py
 npx conduit-ws 3000
 ```
 
@@ -22,7 +25,7 @@ npx conduit-ws 3000
 
 This will publicly expose `localhost:3000` on a random port on `conduit.ws`. Want a subdomain with HTTPS?
 
-```
+```py
 npx conduit-ws 3000 -d foobar
 ```
 
@@ -45,7 +48,7 @@ npm i -g conduit-ws
 
 You can expose a port from your local machine using `conduit client` OR just by running `conduit`. __All of these options can be used on the base `conduit` command.__
 
-```
+```fish
 Expose a local port through the conduit server
 
 Usage: conduit client [options] <PORT>
@@ -63,7 +66,7 @@ Options:
 
 Self-hosting `conduit` is just as easy. You can start a server on port `4225` just by running `conduit server`, or you can configure it more:
 
-```
+```fish
 Usage: conduit server [options]
 
 Options:
