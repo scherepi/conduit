@@ -12,11 +12,13 @@
 	},
 	"dependencies": {
 		"@types/signale": "^1.4.7",
+		"chalk": "^5.4.1",
 		"commander": "^14.0.0",
 		"conduit": "file:",
 		"ky": "^1.8.1",
 		"prettier": "^3.5.3",
-		"signale": "^1.4.0"
+		"signale": "^1.4.0",
+		"wrap-ansi": "^9.0.0"
 	},
 	"scripts": {
 		"lint": "prettier --check .",
