@@ -1,6 +1,7 @@
 // Main CLI logic, started by Joaquin 6/5/2025
 import { Command } from 'commander';
 import { connectToConduit } from './client';
+import { startServer } from "./server";
 import logger from './logger';
 const program = new Command();
 
@@ -39,9 +40,13 @@ program.command('server')
 	.option('-m, --minPort', 'the minimum port of the port range on which you want to allow incoming conections', '1024')
 	.option('-M, --maxPort', 'the maximum port of the port range on which you want to allow incoming connections', '65535')
 	.action((bindAddress, options, command) => {
-		if (options.tunnelBind) {
-
+		if (options.minPort && isNaN(parseInt(options.minPort))) {
+			console.error("Minimum port needs to be valid integer.")
 		}
+		if (options.maxPort && isNaN(parseInt(options.maxPort))) {
+			console.error("Maximum port needs to be valid integer.");
+		}
+		startServer(bindAddress, options.tunnelBind, parseInt(options.minPort), parseInt(options.maxPort));
 	})
 
 

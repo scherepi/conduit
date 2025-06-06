@@ -16,21 +16,28 @@ type ClientData = {
 type ServerListenerData = { connectionId: number };
 
 const portsInUse: Set<number> = new Set();
-portsInUse.add(caddyPort); // just in case
+portsInUse.add(caddyPort); // just in case...
 
 const subdomainsInUse: Set<String> = new Set();
 
 const activeConnections: Map<number, { [connectionId: number]: Bun.Socket<ServerListenerData> }> =
 	new Map(); // the outer key is the port, the inner key is the connection ID
 
+let tunnelBindAddress: string = "";
+let minimumPort: number = 1024;
+let maximumPort: number = 65535;
+
+
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
+	/*
+	 handled higher up
 	if (portsInUse.has(port) || isNaN(port)) {
 		logger.error(`Port ${port} is already in use or invalid.`);
 		return null;
-	}
+	}*/
 
 	const listener = Bun.listen<ServerListenerData>({
-		hostname: "0.0.0.0",
+		hostname: tunnelBindAddress,
 		port,
 
 		// The socket that is being passed here is the one that's between the reverse proxy
@@ -95,7 +102,11 @@ function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<
 	return portListener;
 }
 
-async function main() {
+export async function startServer(listenAddress: string, tunnelAddress: string, minPort: number, maxPort: number) {
+	tunnelBindAddress = tunnelAddress;
+	minimumPort = minPort;
+	maximumPort = maxPort;
+
 	try {
 		await initCaddy("/etc/caddy/certs/domain.cert.pem", "/etc/caddy/certs/private.key.pem");
 	} catch (e) {
@@ -109,7 +120,7 @@ async function main() {
 	}
 
 	Bun.listen<ClientData>({
-		hostname: "0.0.0.0",
+		hostname: listenAddress,
 		port: controlPort,
 		socket: {
 			async data(socket, data) {
@@ -125,7 +136,7 @@ async function main() {
 						? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0)
 						: 0;
 
-					if (portsInUse.has(requestedPort)) {
+					if (portsInUse.has(requestedPort) || isNaN(requestedPort)) {
 						// port is already in use, send an error response
 						const response = encodeMessage(
 							0,
@@ -134,7 +145,7 @@ async function main() {
 						);
 						socket.write(response);
 					} else {
-						const listener = startListener(requestedPort, socket);
+						let listener = startListener(requestedPort, socket);
 						if (!listener) {
 							// this should never happen, but if something goes wrong just say the port is unavailable
 							const response = encodeMessage(
@@ -144,6 +155,11 @@ async function main() {
 							);
 							socket.write(response);
 							return;
+						}
+						
+						while (listener && (listener.port < minimumPort || listener.port > maximumPort)) {
+							logger.warn("Port assigned was outside allowed range, reassigning");
+							listener = startListener(requestedPort, socket);
 						}
 
 						socket.data.listener = listener;
@@ -285,5 +301,3 @@ async function main() {
 
 	logger.success(`Conduit server listening on port ${controlPort}`);
 }
-
-main();
