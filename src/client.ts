@@ -259,7 +259,7 @@ async function establishLocalTunnel(connectionId: number, localPort: number) {
 				logger.error(
 					"You shouldn't be seeing this - please make an issue on the GitHub repository."
 				);
-				console.log("Bugs are how flowers grow ✨");
+				logger.info("Bugs are how flowers grow ✨");
 			},
 
 			connectError(_socket, error) {

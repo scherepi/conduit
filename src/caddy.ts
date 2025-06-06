@@ -1,5 +1,6 @@
 import ky from "ky";
 import { caddyPort, hostname } from "./server";
+import logger from "./logger";
 
 export async function initCaddy(certFile: string, keyFile: string) {
     // clear the caddy config and set up our own with a pre-existing certificate
@@ -57,13 +58,13 @@ export async function initCaddy(certFile: string, keyFile: string) {
             json: baseConfig,
         });
         
-        console.log(`Initialized Caddy configuration with pre-existing certificate.`);
+        logger.successVerbose(`Initialized Caddy configuration with pre-existing certificate.`);
         return response.json();
     } catch (error: any) {
-        console.error("Failed to initialize Caddy:", error.message);
+        logger.error("Failed to initialize Caddy:", error.message);
         if (error.response) {
             const errorText = await error.response.text();
-            console.error("Error details:", errorText);
+            logger.error("Error details:", errorText);
         }
         throw error;
     }
@@ -82,9 +83,10 @@ export async function addReverseProxy(subdomain: string, port: number) {
         await ky.put(`http://localhost:${caddyPort}/config/apps/http/servers/conduit/routes/0`, {
             json: config,
         });
-        console.log("Added reverse proxy for", subdomain, "on port", port);
+        logger.success("Added reverse proxy for", subdomain, "on port", port);
     } catch (e: any) {
-        console.error(`Failed to add reverse proxy for ${subdomain}:\n`, e);
+        logger.error(`Failed to add reverse proxy for ${subdomain}:`);
+        console.log(e);
         console.log(await e.response.text())
     }
 }
@@ -102,7 +104,7 @@ export async function removeReverseProxy(subdomain: string) {
         );
 
         if (routeIndex === -1) {
-            console.warn(`No reverse proxy found for ${subdomain}`);
+            logger.warn(`No reverse proxy found for ${subdomain}`);
             return;
         }
 
@@ -110,8 +112,8 @@ export async function removeReverseProxy(subdomain: string) {
         await ky.delete(
             `http://localhost:${caddyPort}/config/apps/http/servers/conduit/routes/${routeIndex}`
         );
-        console.log(`Removed reverse proxy for ${subdomain}`);
+        logger.success(`Removed reverse proxy for ${subdomain}`);
     } catch (e) {
-        console.error(`Failed to remove reverse proxy for ${subdomain}:\n`, e);
+        logger.error(`Failed to remove reverse proxy for ${subdomain}:\n`, e);
     }
 }
