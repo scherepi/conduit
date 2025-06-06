@@ -1,8 +1,20 @@
-# Conduit
+<div align="center">
+
+<img height="300" src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png">
+
+<!-- for a divider line -->
+<h1 align="center"></h1>
+
+[![][npm-shield]][npm-link]
+
+
+</div>
 
 Conduit is a tool that makes tunneling quick and easy, with support for custom subdomains thanks to Caddy.
 
-Usage: `bun run src`
+```
+npx conduit-ws 3000
+```
 
 ## How does it work?
 
@@ -33,3 +45,7 @@ You can run your very own Conduit server just as easily using the Conduit CLI. Y
 # Acknowledgments
 
 Conduit was built in one night by myself, [Gus](https://github.com/gusruben), and [Sebastian](https://github.com/XDagging), the same team that brought you [You Throw Me](https://github.com/gusruben/you-throw-me). I'd like to thank the Exmilitary mixtape and the new Swans album for getting me through the all-nighter we pulled. Thank you to the [Caddy](https://github.com/caddyserver/caddy) project for making the reverse proxy element simple, and to [Hack Club](https://hackclub.com) for creating an incredible environment for innovation and creativity - we hope Conduit helps make development more accessible for all of you.
+
+
+[npm-shield]: https://img.shields.io/npm/v/conduit-ws?style=flat-square&labelColor=%23232529&color=%233995FF
+[npm-link]: https://www.npmjs.com/package/conduit-ws
