@@ -87,7 +87,7 @@ You'll also need to add a DNS record to point `*.yourdomain.com` at your server.
 `conduit` serves as a gateway between the public internet and local applications running on your machine, making it easy to showcase your work or spin up a webhook without the overhead of running your own server.
 ![`conduit` networking diagram](https://raw.githubusercontent.com/scherepi/conduit/main/.github/diagram.png)
 
-The `conduit` opens a control port on `4225`, where clients connect to open a tunnel. On connection, the client sends a request to reserve a specific port or subdomain (or port 0 to represent a random port if none was specified). The server responds with a message signifying success or failure, which is relayed back to the user. Once an unused port is found, the server starts listening for connections on that port.
+`conduit` opens a control port on `4225`, where clients connect to open a tunnel. On connection, the client sends a request to reserve a specific port or subdomain (or port 0 to represent a random port if none was specified). The server responds with a message signifying success or failure, which is relayed back to the user. Once an unused port is found, the server starts listening for connections on that port.
 
 When the server receives a connection on that port, it identifies the corresponding client and sends it a `NEW_CONNECTION` packet along with a randomly-generated 32-bit 'connection ID.' The client then opens a new connection with the local machine port, and from then on the client and the server proxy any information back and forth between the local server and the outside connection.
 
@@ -111,16 +111,9 @@ Or, if he used the command `conduit 5173 -p 1337` instead, I could go to _condui
 Conduit relies on [Caddy](https://caddyserver.com/) for automatically managing HTTPS.
 
 
-<table>
-    <tr>
-        <td width="60" align="center" valign="middle">
-            <img src="https://assets.hackclub.com/flag-standalone.png" alt="Hack Club Flag" height="48">
-        </td>
-        <td valign="middle">
-            This is a <a href="https://hackclub.com/">Hack Club</a>-dedicated project.
-        </td>
-    </tr>
-</table>
+<img src="https://assets.hackclub.com/flag-standalone.png" alt="Hack Club Flag" height="64">
+
+> *This project is dedicated to [Hack Club](https://hackclub.com).*
 
 [npm-shield]: https://img.shields.io/npm/v/conduit-ws?style=flat-square&color=%23b2ff00
 [npm-link]: https://www.npmjs.com/package/conduit-ws
