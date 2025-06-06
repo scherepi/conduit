@@ -28,12 +28,6 @@ let minimumPort: number = 1024;
 let maximumPort: number = 65535;
 
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
-	/*
-	 handled higher up
-	if (portsInUse.has(port) || isNaN(port)) {
-		logger.error(`Port ${port} is already in use or invalid.`);
-		return null;
-	}*/
 
 	const listener = Bun.listen<ServerListenerData>({
 		hostname: tunnelBindAddress,
