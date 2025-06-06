@@ -5,17 +5,19 @@ import { startServer } from "./server";
 import logger from './logger';
 const program = new Command();
 
+let server = (Bun.argv[2] == "server" ? true : false);
+
 program
 	.name('conduit')
 	.description('Conduit - a link between worlds.')
 	.version('1.0.0');
-
+if (!server) {
 program
 	// conduit remotehost -l localPort -p remotePort -d subdomain -v verbosityLevel 
 	.argument('<remotehost>', 'the remote host to try to tunnel to')
 	.requiredOption('-l, --localPort <portNumber>', 'the local port to try to tunnel to the server', )
-	.option('-p, --remotePort <portNumber>', 'the remote port to request from the server (optional)')
-	.option('-d, --subdomain <subdomain>', 'the subdomain to request from the server. -p and -d are mutually exclusive.')
+	.option('-p, --remotePort <number>', 'the remote port to request from the server (optional)')
+	.option('-d, --subdomain <string>', 'the subdomain to request from the server. -p and -d are mutually exclusive.')
 	.option('-v, --verbose', 'enable verbose output', false)
 	.action((remoteHost, options, _command) => {
 		logger.verbose = options.verbose;
@@ -25,16 +27,15 @@ program
 			console.log("Rerun the command with EITHER the subdomain argument or the remote port.");
 		}
 		if (options.remotePort) {
-			connectToConduit(remoteHost, options.localPort, options.remotePort);
+			connectToConduit(remoteHost, parseInt(options.localPort), parseInt(options.remotePort));
 		}
 		if (options.subdomain) {
-			connectToConduit(remoteHost, options.localPort, null, options.subdomain);
+			connectToConduit(remoteHost, parseInt(options.localPort), null, options.subdomain);
 		}
 	})
-
+}
 // conduit server <bindAddress> -t tunnelAddress -m minimumPort -M maximumPort 
 program.command('server')
-	.description('Base functionality.')
 	.option('-b, --bind', 'the address to bind the server to', '0.0.0.0')
 	.option('-t, --tunnelBind', 'the address to bind tunnels to.', '0.0.0.0')
 	.option('-m, --minPort', 'the minimum port of the port range on which you want to allow incoming conections', '1024')
