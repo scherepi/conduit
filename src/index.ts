@@ -73,13 +73,14 @@ program.configureHelp({
                             .map(part => {
                                 if (part.endsWith(",")) {
                                     return chalk.green(part.slice(0, -1)) + ",";
-                                } else if (part.startsWith("<")) {
+                                } else if (part.startsWith("<") && part.endsWith(">")) {
+                                    // return chalk.blackBright("<") + part.slice(1, -1) + chalk.blackBright(">");
                                     return part
                                 } else {
                                     return chalk.green(part);
                                 }
                             }).join(" ");
-                        const desc = helper.optionDescription(o) || "";
+                        const desc = helper.optionDescription(o).replaceAll('"', "") || "";
                         const wrapped = wrapAnsi(desc, descWidth, { hard: true })
                             .split("\n")
                             .map((line, i) => (i === 0 ? "" : " ".repeat(term.length)) + line)
@@ -151,25 +152,25 @@ program
 
 program
 	.command("server")
-	.option("-d, --domain <DOMAIN>", "the domain to use for the server")
+	.option("-d, --domain <DOMAIN>", "The domain to use for web traffic tunneling (required for HTTPS)")
 	.option(
 		"-b, --bind <BIND_ADDR>",
-		"the address to bind the server to (default: 0.0.0.0)",
+		"the address to bind the server to",
 		"0.0.0.0"
 	)
 	.option(
 		"-t, --tunnelBind <BIND_TUNNELS>",
-		"the address to bind tunnels to (default: 0.0.0.0)",
+		"the address to bind tunnels to",
 		"0.0.0.0"
 	)
 	.option(
 		"-m, --minPort <MIN_PORT>",
-		"the minimum port of the port range on which you want to allow incoming conections (default: 1024)",
+		"the minimum port of the port range on which you want to allow incoming conections",
 		"1024"
 	)
 	.option(
 		"-M, --maxPort <MAX_PORT>",
-		"the maximum port of the port range on which you want to allow incoming connections (default: 65535)",
+		"the maximum port of the port range on which you want to allow incoming connections",
 		"65535"
 	)
 	.action((options, command) => {
@@ -184,7 +185,7 @@ program
 			options.tunnelBind,
 			parseInt(options.minPort),
 			parseInt(options.maxPort),
-			options.domain,
+			options.domain || null,
 		);
 	});
 
