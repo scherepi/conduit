@@ -28,12 +28,6 @@ let minimumPort: number = 1024;
 let maximumPort: number = 65535;
 
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
-	/*
-	 handled higher up
-	if (portsInUse.has(port) || isNaN(port)) {
-		logger.error(`Port ${port} is already in use or invalid.`);
-		return null;
-	}*/
 
 	const listener = Bun.listen<ServerListenerData>({
 		hostname: tunnelBindAddress,
@@ -188,48 +182,6 @@ export async function startServer(
 						socket.write(response);
 						socket.data.hasRequestedPort = true;
 					}
-
-					// } else if (message.messageType == MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
-					// 	// Handle subdomain requests here
-					// 	const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
-
-					// 	if (subdomainsInUse.has(requestedSubdomain)) {
-					// 		// send the client a message that says that subdomain is unavailable
-					// 		const response = encodeMessage(
-					// 			0,
-					// 			MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-					// 			new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-					// 		);
-					// 		socket.write(response);
-					// 	} else {
-					// 		subdomainsInUse.add(requestedSubdomain);
-					// 		const listener = startSubdomainListener(requestedSubdomain, socket);
-					// 		if (!listener) {
-					// 			// TODO: make the server accountable to the client for errors
-					// 			// something has gone horribly wrong.
-					// 			const response = encodeMessage(
-					// 				0,
-					// 				MESSAGE_TYPE.PORT_RESPONSE,
-					// 				new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-					// 			)
-					// 			socket.write(response);
-					// 			return;
-					// 		}
-
-					// 		socket.data.listener = listener;
-					// 		socket.data.port = listener.port;
-
-					// 		const response = encodeMessage(
-					// 			0,
-					// 			MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-					// 			new Uint8Array([REQUEST_STATUS.SUCCESS])
-					// 		);
-					// 		socket.write(response);
-					// 		socket.data.hasRequestedPort = true;
-
-					// 		socket.data.subdomain = requestedSubdomain;
-					// 	}
-					// }
 				}
 
 				// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
