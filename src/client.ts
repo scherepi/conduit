@@ -62,9 +62,16 @@ const pendingData = new Map<number, Array<Uint8Array>>(); // data that is pendin
 const parser = new MessageParser(); // parser for incoming messages from the conduit server
 
 // the central function that connects to the conduit server
-export async function connectToConduit(hostname: string, localPort:number, remotePort?: number|null, subdomain?: string) {
+export async function connectToConduit(
+	hostname: string,
+	localPort: number,
+	remotePort?: number | null,
+	subdomain?: string
+) {
 	if (remotePort && subdomain) {
-		logger.error("You can't pick a subdomain and a remote port - your greed is disgusting. Just pick one.");
+		logger.error(
+			"You can't pick a subdomain and a remote port - your greed is disgusting. Just pick one."
+		);
 		process.exit(1);
 	}
 	if (!localPort) {
@@ -74,7 +81,6 @@ export async function connectToConduit(hostname: string, localPort:number, remot
 
 	logger.await(`Connecting to conduit server at ${hostname}:${conduitPort}...`);
 	conduitSocket = await Bun.connect({
-		
 		hostname: hostname, // hostname for the remote conduit server
 		port: conduitPort, // this is the port that the conduit server will always run on.
 
@@ -84,27 +90,39 @@ export async function connectToConduit(hostname: string, localPort:number, remot
 				parser.addData(data);
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
-					logger.debugVerbose(`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`);
+					logger.debugVerbose(
+						`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`
+					);
 					switch (parsedMessage.messageType) {
 						case MESSAGE_TYPE.DATA:
-							logger.awaitVerbose("Trying to write data to local tunnel with connection ID:", parsedMessage.connectionId, "state", localTunnels[parsedMessage.connectionId]?.readyState);
-							
+							logger.awaitVerbose(
+								"Trying to write data to local tunnel with connection ID:",
+								parsedMessage.connectionId,
+								"state",
+								localTunnels[parsedMessage.connectionId]?.readyState
+							);
+
 							if (localTunnels[parsedMessage.connectionId]) {
 								localTunnels[parsedMessage.connectionId]?.write(
 									parsedMessage.payload || new Uint8Array()
 								);
 							} else {
-								logger.warnVerbose(`Local tunnel ${parsedMessage.connectionId} is not open, buffering data`);
+								logger.warnVerbose(
+									`Local tunnel ${parsedMessage.connectionId} is not open, buffering data`
+								);
 								if (!pendingData.has(parsedMessage.connectionId)) {
 									pendingData.set(parsedMessage.connectionId, []);
 								}
-								pendingData.get(parsedMessage.connectionId)?.push(
-									parsedMessage.payload || new Uint8Array()
-								);
+								pendingData
+									.get(parsedMessage.connectionId)
+									?.push(parsedMessage.payload || new Uint8Array());
 							}
 							break;
 						case MESSAGE_TYPE.NEW_CONNECTION:
-							logger.debugVerbose("Received new connection request from server with ID:", parsedMessage.connectionId);
+							logger.debugVerbose(
+								"Received new connection request from server with ID:",
+								parsedMessage.connectionId
+							);
 							// this function is async, but we intentionally don't await it
 							establishLocalTunnel(parsedMessage.connectionId, localPort ? localPort : 0);
 							break;
@@ -139,19 +157,21 @@ export async function connectToConduit(hostname: string, localPort:number, remot
 								break;
 							}
 							logger.success(
-							`Successfully connected to conduit server. You've been assigned port ${assignedPort}.`
+								`Successfully connected to conduit server. You've been assigned port ${assignedPort}.`
 							);
 							logger.info(
 								`Tell your friends to visit ${hostname}:${assignedPort} to see your work!`
 							);
 							break;
 						case MESSAGE_TYPE.SUBDOMAIN_RESPONSE:
-							const subdomainStatus = parsedMessage.payload ? parsedMessage.payload[0] : 1
+							const subdomainStatus = parsedMessage.payload ? parsedMessage.payload[0] : 1;
 							// this message is received when the server reports the availability of a subdomain to the client.
 							if (subdomainStatus == REQUEST_STATUS.SUCCESS) {
 								logger.success(`Successfully acquired subdomain ${subdomain}.${hostname}`);
 							} else if (subdomainStatus == REQUEST_STATUS.UNAVAILABLE) {
-								logger.error("Unable to acquire subdomain. Please try a different subdomain or use a remote port.");
+								logger.error(
+									"Unable to acquire subdomain. Please try a different subdomain or use a remote port."
+								);
 								process.exit(1);
 							}
 							break;
@@ -185,17 +205,16 @@ export async function connectToConduit(hostname: string, localPort:number, remot
 					assignedPort = remotePort; // set the assigned port to the remote port we requested
 				} else if (subdomain) {
 					// request a random port, then a subdomain
-					socket.write(encodeMessage(
-						0,
-						MESSAGE_TYPE.PORT_REQUEST,
-						null
-					));
-					socket.write(encodeMessage(
-						0,
-						MESSAGE_TYPE.SUBDOMAIN_REQUEST,
-						new Uint8Array(new TextEncoder().encode(subdomain))
-					));
-				} else { // just request a random port
+					socket.write(encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null));
+					socket.write(
+						encodeMessage(
+							0,
+							MESSAGE_TYPE.SUBDOMAIN_REQUEST,
+							new Uint8Array(new TextEncoder().encode(subdomain))
+						)
+					);
+				} else {
+					// just request a random port
 					const portRequestMessage = encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null);
 					socket.write(portRequestMessage);
 				}
@@ -246,7 +265,7 @@ async function establishLocalTunnel(connectionId: number, localPort: number) {
 			},
 			close(_socket, error) {
 				// called when the local tunnel is closed by the client
-				logger.debugVerbose("Local connection closed.")	
+				logger.debugVerbose("Local connection closed.");
 				const encodedMessage = encodeMessage(connectionId, MESSAGE_TYPE.CONNECTION_CLOSED, null);
 				conduitSocket?.write(encodedMessage);
 				delete localTunnels[connectionId];

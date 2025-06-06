@@ -27,7 +27,6 @@ let tunnelBindAddress: string = "";
 let minimumPort: number = 1024;
 let maximumPort: number = 65535;
 
-
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 	/*
 	 handled higher up
@@ -43,16 +42,16 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 		// The socket that is being passed here is the one that's between the reverse proxy
 		socket: {
 			open(socket) {
-				logger.infoVerbose("Got a connection on the listener")
-			
+				logger.infoVerbose("Got a connection on the listener");
+
 				try {
 					// generate a random 32-bit connection ID
 					socket.data = {
 						connectionId: crypto.getRandomValues(new Uint32Array(1))[0] as number,
 					};
-					logger.infoVerbose(`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
-)
-				
+					logger.infoVerbose(
+						`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
+					);
 
 					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, null);
 					intiatingSocket.write(msg);
@@ -102,7 +101,12 @@ function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<
 	return portListener;
 }
 
-export async function startServer(listenAddress: string, tunnelAddress: string, minPort: number, maxPort: number) {
+export async function startServer(
+	listenAddress: string,
+	tunnelAddress: string,
+	minPort: number,
+	maxPort: number
+) {
 	tunnelBindAddress = tunnelAddress;
 	minimumPort = minPort;
 	maximumPort = maxPort;
@@ -156,7 +160,7 @@ export async function startServer(listenAddress: string, tunnelAddress: string, 
 							socket.write(response);
 							return;
 						}
-						
+
 						while (listener && (listener.port < minimumPort || listener.port > maximumPort)) {
 							logger.warn("Port assigned was outside allowed range, reassigning");
 							listener = startListener(requestedPort, socket);
@@ -184,7 +188,7 @@ export async function startServer(listenAddress: string, tunnelAddress: string, 
 						socket.write(response);
 						socket.data.hasRequestedPort = true;
 					}
-					
+
 					// } else if (message.messageType == MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
 					// 	// Handle subdomain requests here
 					// 	const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
@@ -235,9 +239,10 @@ export async function startServer(listenAddress: string, tunnelAddress: string, 
 						activeConnections
 							.get(socket.data.port as number)!
 							[message.connectionId]?.write(message.payload || new Uint8Array());
-
 					} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
-						const requestedSubdomain = message.payload ? new TextDecoder().decode(message.payload) : "";
+						const requestedSubdomain = message.payload
+							? new TextDecoder().decode(message.payload)
+							: "";
 
 						if (subdomainsInUse.has(requestedSubdomain)) {
 							// send the client a message that says that subdomain is unavailable
@@ -249,10 +254,10 @@ export async function startServer(listenAddress: string, tunnelAddress: string, 
 							socket.write(response);
 						} else {
 							await addReverseProxy(requestedSubdomain, socket.data.port as number);
-							
+
 							subdomainsInUse.add(requestedSubdomain);
 							socket.data.subdomain = requestedSubdomain;
-							
+
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
@@ -265,8 +270,8 @@ export async function startServer(listenAddress: string, tunnelAddress: string, 
 			},
 			open(socket) {
 				// Triggers on receiving new connection to listener server
-			
-				logger.success(`New connection from ${socket.remoteAddress}:${socket.remotePort}`)
+
+				logger.success(`New connection from ${socket.remoteAddress}:${socket.remotePort}`);
 				socket.data = {
 					hasRequestedPort: false,
 					port: null,
@@ -277,7 +282,7 @@ export async function startServer(listenAddress: string, tunnelAddress: string, 
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener
-				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`)
+				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
 				if (socket.data.listener) {
 					socket.data.listener.stop();
 					if (socket.data.port) {
