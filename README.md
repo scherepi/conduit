@@ -17,13 +17,13 @@
 
 **Try it out:**
 
-```py
+```
 npx conduit-ws 3000
 ```
 
 This will publicly expose `localhost:3000` on a random port on `conduit.ws`. Want a subdomain with HTTPS?
 
-```py
+```
 npx conduit-ws 3000 -d foobar
 ```
 
