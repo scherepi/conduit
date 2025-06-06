@@ -13,15 +13,13 @@
 <h1 align="center"></h1>
 
 
-Conduit is a smart utility for sharing local apps with the world, no server deployment or firewall wrangling necessary. It tunnels your local ports through NAT and firewalls, automatically adds HTTPS to your endpoints, and lets you show off your projects or test webhooks in seconds. Just run `conduit` and your machine is open for business (the fun kind).
+`conduit` is a smart utility for sharing local apps with the world, no server deployment or firewall wrangling necessary. It tunnels your local ports through NAT and firewalls, automatically adds HTTPS to your endpoints, and lets you show off your projects or test webhooks in seconds. Just run `conduit` and your machine is open for business (the fun kind).
 
 **Try it out:**
 
 ```py
 npx conduit-ws 3000
 ```
-
-<a href="https://asciinema.org/a/722341" target="_blank"><img src="https://asciinema.org/a/722341.svg" /></a>
 
 This will publicly expose `localhost:3000` on a random port on `conduit.ws`. Want a subdomain with HTTPS?
 
@@ -33,16 +31,18 @@ This will connect your website directly to **https**://foobar.conduit.ws.
 
 ## Demo
 
-<!-- asciinema -->
+<a href="https://asciinema.org/a/722341" target="_blank"><img src="https://asciinema.org/a/722341.svg" /></a>
 
 ## Installation
 
 <!-- is bun a requirement? mention here -->
-Conduit is hosted on [NPM](https://www.npmjs.com/package/conduit-ws).
+`conduit` is hosted on [NPM](https://www.npmjs.com/package/conduit-ws).
 
 ```
 npm i -g conduit-ws
 ```
+
+To host a server with automatic HTTPS, you'll also need to install [Caddy](https://caddyserver.com/).
 
 ## Usage
 
@@ -62,7 +62,7 @@ Options:
   -h, --help                   Display help for command
 ```
 
-### Running a Conduit server
+### Running a `conduit` server
 
 Self-hosting `conduit` is just as easy. You can start a server on port `4225` just by running `conduit server`, or you can configure it more:
 
@@ -78,29 +78,49 @@ Options:
   -h, --help                       Display help for command
 ```
 
+If you want to automatically add HTTPS to web traffic, you'll need to [install Caddy](https://github.com/caddyserver/caddy#install) and get it up and running. If you're on a Linux system it should come with a Systemd service (that you can start with `# systemctl start caddy`), or you can just run it yourself with `# caddy run`.
+
+You'll also need to add a DNS record to point `*.yourdomain.com` at your server.
+
 ## How does it work?
 
-Conduit serves as a gateway between external observers and local applications running on your machine, allowing you to showcase your work without the overhead of running your own server.
-![Conduit networking diagram](https://hc-cdn.hel1.your-objectstorage.com/s/v3/ad975562c6adc800c4865dfb922f41707737c870_conduit_diagram__1_.png)
-When your client connects to the server, you can request either a specific port on the server **or** a subdomain, and specify the local port you'd like to mirror. The server reserves that port/subdomain for you if available, and listens on that port for requests from external observers who'd like to connect to your machine.
+`conduit` serves as a gateway between the public internet and local applications running on your machine, making it easy to showcase your work or spin up a webhook without the overhead of running your own server.
+![`conduit` networking diagram](https://hc-cdn.hel1.your-objectstorage.com/s/v3/ad975562c6adc800c4865dfb922f41707737c870_conduit_diagram__1_.png)
 
-When the server gets a request to the port or subdomain you reserved, it uses our special messaging logic to give that communication a unique identifier, and reports the new connection to your client. The client then creates a localized tunnel to the port on your machine where your local application is running, and the data interchange begins, with the server and client working together to pass data between your local application and the external observer.
+The `conduit` opens a control port on `4225`, where clients connect to open a tunnel. On connection, the client sends a request to reserve a specific port or subdomain (or port 0 to represent a random port if none was specified). The server responds with a message signifying success or failure, which is relayed back to the user. Once an unused port is found, the server starts listening for connections on that port.
+
+When the server receives a connection on that port, it identifies the corresponding client and sends it a `NEW_CONNECTION` packet along with a randomly-generated 32-bit 'connection ID.' The client then opens a new connection with the local machine port, and from then on the client and the server proxy any information back and forth between the local server and the outside connection.
+
+If the user requests a subdomain, after confirming the subdomain is not in use, the server will *still* forward the connection to a random port, but then it contacts [Caddy](https://caddyserver.com/) using the JSON API. `conduit` will reconfigure Caddy on the fly to add a new reverse proxy, forwarding any new connections on the subdomain to the port, which in turn forwards them to the client and then to the local application.
 
 **Here's an example:**
 
-Let's say my friend [Gus](https://github.com/gusruben) has written a really cool website in Svelte and wants to show me, but all his servers are busy hosting his awesome projects. Thankfully, I have a Conduit server running at [conduit.ws](https://conduit.ws) that we can use. His Svelte site is running on port **5173** on his local machine, and he'd like to have a subdomain with his name, so he uses the following command to connect to Conduit:
+Let's say my friend [Gus](https://github.com/gusruben) has written a really cool website in Svelte and wants to show me, but all his servers are busy hosting his awesome projects. Thankfully, there's a public `conduit` server running at [conduit.ws](https://conduit.ws) that we can use. His Svelte site is running on port **5173** on his local machine, and he'd like to have a subdomain with his name, so he uses the following command to connect to `conduit`:
 
-`bun run src conduit.ws -l 5173 -d gus`
+`conduit -l 5173 -d gus`
 
-Now, I can go to _gus.conduit.ws_, and the Conduit server will pass along my web requests to Gus's site so that I get to see his web dev wizardry. **It's that easy.**
+Now, I can go to _gus.conduit.ws_, and the `conduit` server will pass along my web requests to Gus's site so that I get to see his web dev wizardry. **It's that easy.**
 
-Or, if he used the command `bun run src conduit.ws -l 5173 -p 8070` instead, I could go to _conduit.ws:8070_ for the same result.
+Or, if he used the command `conduit 5173 -p 1337` instead, I could go to _conduit.ws:1337_ for the same result.
 
 
 # Acknowledgments
 
-Conduit was built in one night by myself, [Gus](https://github.com/gusruben), and [Sebastian](https://github.com/XDagging), the same team that brought you [You Throw Me](https://github.com/gusruben/you-throw-me). I'd like to thank the Exmilitary mixtape and the new Swans album for getting me through the all-nighter we pulled. Thank you to the [Caddy](https://github.com/caddyserver/caddy) project for making the reverse proxy element simple, and to [Hack Club](https://hackclub.com) for creating an incredible environment for innovation and creativity - we hope Conduit helps make development more accessible for all of you.
+`conduit` was built in one night by myself, [Gus](https://github.com/gusruben), and [Sebastian](https://github.com/XDagging), the same team that brought you [You Throw Me](https://github.com/gusruben/you-throw-me). I'd like to thank the Exmilitary mixtape and the new Swans album for getting me through the all-nighter we pulled.
 
+Conduit relies on [Caddy](https://caddyserver.com/) for automatically managing HTTPS.
+
+
+<table>
+    <tr>
+        <td width="60" align="center" valign="middle">
+            <img src="https://assets.hackclub.com/flag-standalone.png" alt="Hack Club Flag" height="48">
+        </td>
+        <td valign="middle">
+            This is a <a href="https://hackclub.com/">Hack Club</a>-dedicated project.
+        </td>
+    </tr>
+</table>
 
 [npm-shield]: https://img.shields.io/npm/v/conduit-ws?style=flat-square&color=%23b2ff00
 [npm-link]: https://www.npmjs.com/package/conduit-ws
