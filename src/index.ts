@@ -126,7 +126,7 @@ program
 		}
 
 		connectToConduit(
-			options.to || "conduit.ws",
+			options.to || "conduit.ws",	
 			parseInt(port),
 			options.keepAlive,
 			parseInt(options.remotePort) || null,
@@ -164,6 +164,9 @@ program
 		if (options.maxPort && isNaN(parseInt(options.maxPort))) {
 			logger.error("Maximum port needs to be valid integer.");
 		}
+
+
+
 		startServer(
 			options.bind,
 			options.tunnelBind,

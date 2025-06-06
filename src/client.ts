@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import meow from "meow";
+// import meow from "meow";
 import MessageParser, {
 	decodeMessage,
 	encodeMessage,
@@ -8,6 +8,7 @@ import MessageParser, {
 	REQUEST_STATUS,
 } from "./messages";
 import logger from "./logger";
+import { isErrored } from "stream";
 
 /*
 const cli = meow(
@@ -72,7 +73,10 @@ export async function connectToConduit(
 	
 ) {
 	logger.await(`Connecting to conduit server at ${hostname}:${conduitPort}...`);
-	conduitSocket = await Bun.connect({
+	
+	try {
+		
+		conduitSocket = await Bun.connect({
 		hostname: hostname, // hostname for the remote conduit server
 		port: conduitPort, // this is the port that the conduit server will always run on.
 
@@ -217,14 +221,24 @@ export async function connectToConduit(
 				for (const connectionId in localTunnels) {
 					localTunnels[connectionId]?.end();
 				}
+				
 				process.exit(1);
+				
+				
 			},
 			// client-specific handlers
-			connectError(_socket, _error) {
+			connectError(_socket, _error: any) {
+				// console.log(Object.keys(_error));
+				
+				if (_error?.code==="ECONNREFUSED") {
+					logger.warn(
+						"Failed to connect to the conduit server. Please check your network connection and the hostname."
+					);
+				
+					return;
+				}
 				// called when the connection fails on the client-side
-				logger.error(
-					"Failed to connect to the conduit server. Please check your network connection and the hostname."
-				);
+				
 			},
 		},
 	});
@@ -245,6 +259,16 @@ export async function connectToConduit(
 
 
 	}
+	} catch(e) {
+	
+		// console.log(e);
+		const listOfLogs = ["We've all had better moments","Ouch! That hurts"]
+
+		logger.error(listOfLogs[Math.floor(Math.random()*listOfLogs.length)]+". Make sure you have something running at the port specified and run again.")
+		return;
+	}
+	
+	
 }
 
 // connection from the conduit client to the local port
