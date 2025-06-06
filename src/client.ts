@@ -212,11 +212,12 @@ export async function connectToConduit(
 			},
 
 			close(_socket, _error) {
-				logger.info("Connection to the conduit server has ended.");
+				logger.info("Connection with the conduit server has closed.");
 				// close all the local tunnels
 				for (const connectionId in localTunnels) {
 					localTunnels[connectionId]?.end();
 				}
+				process.exit(1);
 			},
 			// client-specific handlers
 			connectError(_socket, _error) {

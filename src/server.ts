@@ -241,18 +241,15 @@ export async function startServer(
 				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
 				if (socket.data.listener) {
 					socket.data.listener.stop();
-					if (socket.data.port) {
-						logger.info(`Listener on port ${socket.data.port} closed.`);
-						portsInUse.delete(socket.data.port as number);
-					} else if (socket.data.subdomain) {
-						logger.info(`Listener on subdomain ${socket.data.subdomain} closed.`);
+					if (socket.data.subdomain) {
+						logger.info(`Listener on port ${socket.data.port} closed with subdomain ${socket.data.subdomain}.`);
 						removeReverseProxy(socket.data.subdomain);
-						// setTimeout(() => {
-							// This is so lets say their lights flicker or something like that and the server crashes. Their subdomain can't just be instantly swooped and they'd have 5 minutes to get it back.
-							subdomainsInUse.delete(socket.data.subdomain as string);
-						// }, 300*1000)
-						
+						subdomainsInUse.delete(socket.data.subdomain as string);
+					} else {
+						logger.info(`Listener on port ${socket.data.port} closed.`);
 					}
+
+					portsInUse.delete(socket.data.port as number);
 				}
 			},
 			drain(_socket) {
