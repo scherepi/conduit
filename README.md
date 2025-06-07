@@ -1,6 +1,6 @@
 <div align="center">
 
-<img height="300" src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png">
+<img src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png">
 
 </div>
 <br>
