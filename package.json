@@ -16,6 +16,7 @@
 		"commander": "^14.0.0",
 		"conduit": "file:",
 		"ky": "^1.8.1",
+		"neo-blessed": "^0.2.0",
 		"prettier": "^3.5.3",
 		"signale": "^1.4.0",
 		"wrap-ansi": "^9.0.0"
