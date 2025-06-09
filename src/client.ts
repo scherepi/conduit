@@ -44,7 +44,7 @@ export async function connectToConduit(
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
 					logger.debugVerbose(
-						`[${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`
+						`[MESSAGE_TYPE: ${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`
 					);
 					switch (parsedMessage.messageType) {
 						case MESSAGE_TYPE.DATA:

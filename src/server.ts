@@ -123,89 +123,93 @@ export async function startServer(
 			async data(socket, data) {
 				socket.data.parser.addData(data);
 
-				// if the client has yet to request a port, handle that before anything else
-				while (!socket.data.hasRequestedPort) {
-					const message = socket.data.parser.parseMessage();
-					if (!message) continue; // no complete message yet, wait for more data
+				for (const message of socket.data.parser.parseMessages()) {
 
-					// also handle secret exchanges before anything else
-					if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
-						const receivedSecret = new TextDecoder().decode(message.payload || new Uint8Array());
-						if (secret && receivedSecret === secret) {
-							// the secret is correct, send a success response
-							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.SUCCESS])));
-							continue;
-						} else {
-							// if the secret doesn't match, send an error response and close the connection
+					// if the client has yet to request a port, handle that before anything else
+					if (!socket.data.hasRequestedPort) {
+						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+
+						// also handle secret exchanges before anything else
+						if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
+							const receivedSecret = new TextDecoder().decode(message.payload || new Uint8Array());
+							if (secret && receivedSecret === secret) {
+								// the secret is correct, send a success response
+								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.SUCCESS])));
+								logger.info(`Connection from ${socket.remoteAddress} authenticated successfully.`);
+								socket.data.hasAuthenticated = true;
+								continue;
+							} else {
+								// if the secret doesn't match, send an error response and close the connection
+								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
+								socket.end();
+								logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
+								return;
+							}
+						} else if (secret && !socket.data.hasAuthenticated) { // if a secret is set but the client doesn't have one, reject the connection
 							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 							socket.end();
-							logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
-							return;
+							logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
 						}
-					} else if (secret && !socket.data.hasAuthenticated) { // if a secret is set but the client doesn't have one, reject the connection
-						socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
-						socket.end();
-						logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
-					}
 
-					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
+						if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
 
-					const requestedPort = message.payload
-						? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0)
-						: 0;
+						const requestedPort = message.payload
+							? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0)
+							: 0;
 
-					if (portsInUse.has(requestedPort) || isNaN(requestedPort)) {
-						// port is already in use, send an error response
-						const response = encodeMessage(
-							0,
-							MESSAGE_TYPE.PORT_RESPONSE,
-							new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
-						);
-						socket.write(response);
-					} else {
-						let listener = startListener(requestedPort, socket);
-						if (!listener) {
-							// this should never happen, but if something goes wrong just say the port is unavailable
+						if (portsInUse.has(requestedPort) || isNaN(requestedPort)) {
+							// port is already in use, send an error response
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.PORT_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
 							);
 							socket.write(response);
-							return;
-						}
-
-						while (listener && (listener.port < minimumPort || listener.port > maximumPort)) {
-							logger.warn("Port assigned was outside allowed range, reassigning");
-							listener = startListener(requestedPort, socket);
-						}
-
-						socket.data.listener = listener;
-						socket.data.port = listener.port;
-
-						// port is available, tell the client to move on
-						let response;
-						if (requestedPort == 0) {
-							// If port was randomly assigned, broadcast the assignment to the user
-							response = encodeMessage(
-								0,
-								MESSAGE_TYPE.PORT_ASSIGNED,
-								new Uint8Array([listener.port >> 8, listener.port & 0xff])
-							);
 						} else {
-							response = encodeMessage(
-								0,
-								MESSAGE_TYPE.PORT_RESPONSE,
-								new Uint8Array([REQUEST_STATUS.SUCCESS])
-							);
-						}
-						socket.write(response);
-						socket.data.hasRequestedPort = true;
-					}
-				}
+							let listener = startListener(requestedPort, socket);
+							if (!listener) {
+								// this should never happen, but if something goes wrong just say the port is unavailable
+								const response = encodeMessage(
+									0,
+									MESSAGE_TYPE.PORT_RESPONSE,
+									new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+								);
+								socket.write(response);
+								return;
+							}
 
-				// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
-				for (const message of socket.data.parser.parseMessages()) {
+							while (listener && (listener.port < minimumPort || listener.port > maximumPort)) {
+								logger.warn("Port assigned was outside allowed range, reassigning");
+								listener = startListener(requestedPort, socket);
+							}
+
+							socket.data.listener = listener;
+							socket.data.port = listener.port;
+
+							// port is available, tell the client to move on
+							let response;
+							if (requestedPort == 0) {
+								// If port was randomly assigned, broadcast the assignment to the user
+								response = encodeMessage(
+									0,
+									MESSAGE_TYPE.PORT_ASSIGNED,
+									new Uint8Array([listener.port >> 8, listener.port & 0xff])
+								);
+							} else {
+								response = encodeMessage(
+									0,
+									MESSAGE_TYPE.PORT_RESPONSE,
+									new Uint8Array([REQUEST_STATUS.SUCCESS])
+								);
+							}
+							socket.write(response);
+							socket.data.hasRequestedPort = true;
+						}
+
+						continue; // move on to the next message
+					}
+
+					// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
 					// only handle data and subdomain messages-- nothing else should come through
 					if (message.messageType === MESSAGE_TYPE.DATA) {
 						activeConnections
