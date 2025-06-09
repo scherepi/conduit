@@ -18,13 +18,13 @@
 **Try it out:**
 
 ```
-npx conduit-ws 3000
+bunx conduit-ws 3000
 ```
 
 This will publicly expose `localhost:3000` on a random port on `conduit.ws`. Want a subdomain with HTTPS?
 
 ```
-npx conduit-ws 3000 -d foobar
+bunx conduit-ws 3000 -d foobar
 ```
 
 This will connect your website directly to **https**://foobar.conduit.ws.
@@ -36,10 +36,10 @@ This will connect your website directly to **https**://foobar.conduit.ws.
 ## Installation
 
 <!-- is bun a requirement? mention here -->
-`conduit` is hosted on [NPM](https://www.npmjs.com/package/conduit-ws).
+`conduit` is hosted on [NPM](https://www.npmjs.com/package/conduit-ws). It can be installed with either `npm` or `bun`, but it **needs [Bun](https://bun.sh/) to run**.
 
 ```
-npm i -g conduit-ws
+bun i -g conduit-ws
 ```
 
 To host a server with automatic HTTPS, you'll also need to install [Caddy](https://caddyserver.com/).
