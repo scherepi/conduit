@@ -1,6 +1,6 @@
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
 import logger from "./logger";
-import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS } from "./messages";
+import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS, SECRET_STATUS } from "./messages";
 const controlPort = 4225;
 export const caddyPort = 2019; // the caddy admin port
 
@@ -88,18 +88,13 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 	return listener;
 }
 
-// function startSubdomainListener(subdomain: string, initiatingSocket: Bun.Socket<ClientData>) {
-// 	const portListener = startListener(0, initiatingSocket);
-// 	addReverseProxy(subdomain, portListener ? portListener.port : 65536);
-// 	return portListener;
-// }
-
 export async function startServer(
 	listenAddress: string,
 	tunnelAddress: string,
 	minPort: number,
 	maxPort: number,
-	hostname: string | null,
+	hostname?: string,
+	secret?: string
 ) {
 	tunnelBindAddress = tunnelAddress;
 	minimumPort = minPort;
@@ -120,8 +115,6 @@ export async function startServer(
 	}
 
 
-	
-
 	Bun.listen<ClientData>({
 		hostname: listenAddress,
 		port: controlPort,
@@ -133,6 +126,23 @@ export async function startServer(
 				while (!socket.data.hasRequestedPort) {
 					const message = socket.data.parser.parseMessage();
 					if (!message) continue; // no complete message yet, wait for more data
+
+					// also handle secret exchanges before anything else
+					if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
+						const receivedSecret = new TextDecoder().decode(message.payload || new Uint8Array());
+						if (secret && receivedSecret === secret) {
+							// the secret is correct, send a success response
+							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.SUCCESS])));
+							continue;
+						} else {
+							// if the secret doesn't match, send an error response and close the connection
+							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
+							socket.end();
+							logger.warn(`Connection from ${socket.remoteAddress}:${socket.remotePort} rejected due to invalid secret.`);
+							return;
+						}
+					}
+
 					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
 
 					const requestedPort = message.payload

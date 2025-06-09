@@ -8,7 +8,15 @@ export const MESSAGE_TYPE = {
 	PORT_ASSIGNED: 6,
 	SUBDOMAIN_REQUEST: 7,
 	SUBDOMAIN_RESPONSE: 8,
+	SECRET_EXCHANGE: 9
 };
+
+export const SECRET_STATUS = {
+	SUCCESS: 0,
+	REJECTED: 1,
+	NOT_SET: 2
+}
+
 // status codes for PORT_RESPONSE or SUBDOMAIN_RESPONSE
 export const REQUEST_STATUS = {
 	SUCCESS: 0, // sent when the port requested is available on the server, and not in use by another tunnel.
@@ -16,27 +24,6 @@ export const REQUEST_STATUS = {
 	UNSUPPORTED: 2, // if a subdomain is requested, but the server doesn't support subdomains (no caddy or domain name)
 };
 
-/*
-outsider opens connection to a a listening port
-the client and outsider can send data back and forth
-a second outsider opens a connection to the same port
-when the second outsider sends data, it is sent to the 
-*/
-
-/*
-the client doesn't run a listener server, it runs some sort of connector
-when it gets a connection from the conduit, it opens a connection with the local port
-when it gets data from the conduit, it sends it to the local port
-when the connection closes, it closes the local port connection
-
-the client can't recieve connections from the conduit, though
-so the conduit needs to communicate "new connection"
-conduit signals:
-"new connection" - w/ a socket id
-"new data"
-"connection closed"
-essentially, one for every signal we have in the code
-*/
 
 // [4 bytes: connection id][1 byte: message type][4 bytes: payload length][n bytes: payload]
 export const HEADER_SIZE = 4 + 1 + 4;

@@ -6,53 +6,10 @@ import MessageParser, {
 	encodeMessage,
 	MESSAGE_TYPE,
 	REQUEST_STATUS,
+	SECRET_STATUS
 } from "./messages";
 import logger from "./logger";
 import { isErrored } from "stream";
-
-/*
-const cli = meow(
-	// USAGE MESSAGE
-
-	`Conduit: A link between worlds.
-    
-    --localPort, -p             the local port to forward to the remote host
-
-	--subdomain -d				your desired subdomain on the server (instead of specifying a remote port)
-
-	--remotePort, -r			if you want a specific one, the remote port the conduit server should host your service on
-
-	--silentMode, -s 			reduce client verbosity (you hate me don't you :( )
-
-    Usage: conduit <remote-host> -p <localPort>
-    `,
-
-	{
-		importMeta: import.meta,
-		flags: {
-			localPort: {
-				type: "number",
-				shortFlag: "p",
-			},
-			subdomain: {
-				type: "string",
-				shortFlag: "d",
-				isRequired: false
-			},
-			remotePort: {
-				type: "number",
-				shortFlag: "r",
-				isRequired: false
-			},
-			silentMode: {
-				type: "boolean",
-				shortFlag: "s",
-				isRequired: false
-			},
-		},
-	}
-);
-*/
 
 const conduitPort: number = 4225; // hard-coded server control port - "HACK" on a phone!
 
@@ -69,7 +26,7 @@ export async function connectToConduit(
 	keepAlive: boolean,
 	remotePort?: number | null,
 	subdomain?: string,
-	
+	secretKey?: string
 	
 ) {
 	logger.await(`Connecting to conduit server at ${hostname}:${conduitPort}...`);
@@ -81,7 +38,7 @@ export async function connectToConduit(
 		port: conduitPort, // this is the port that the conduit server will always run on.
 
 		socket: {
-			data(_socket, data) {
+			data(socket, data) {
 				// called on the receiving of new data from the conduit
 				parser.addData(data);
 				// we've gotta interpret the server message
@@ -121,6 +78,43 @@ export async function connectToConduit(
 							);
 							// this function is async, but we intentionally don't await it
 							establishLocalTunnel(parsedMessage.connectionId, localPort ? localPort : 0);
+							break;
+						case MESSAGE_TYPE.SECRET_EXCHANGE:
+							// the client is receiving a message about whether its secret key authenticated it to the server
+							const secretStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
+							if (secretStatus == SECRET_STATUS.REJECTED) {
+								logger.error("You were kicked out of the playground for throwing sand at other kids. (Authentication Failure)");
+								process.exit(1);
+							} else if (secretStatus == SECRET_STATUS.NOT_SET || secretStatus == SECRET_STATUS.SUCCESS) {
+								secretStatus == SECRET_STATUS.NOT_SET ? logger.warn("You didn't need a key silly! This party is open invite!") : logger.info("Authenticated successfully!");
+								// Do the thing to log in:
+								logger.debugVerbose("Connected successfully to server");
+								// called on the opening of a new connection to the conduit
+								// first step is to request our port on the conduit server
+								if (remotePort) {
+									const portRequestMessage = encodeMessage(
+										0,
+										MESSAGE_TYPE.PORT_REQUEST,
+										new Uint8Array([remotePort >> 8, remotePort & 0xff])
+									);
+									socket.write(portRequestMessage);
+									assignedPort = remotePort; // set the assigned port to the remote port we requested
+								} else {
+									socket.write(encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null));
+								}
+								
+								// request a subdomain if one is provided
+								if (subdomain) {
+									socket.write(
+										encodeMessage(
+											0,
+											MESSAGE_TYPE.SUBDOMAIN_REQUEST,
+											new Uint8Array(new TextEncoder().encode(subdomain))
+										)
+									);
+								}
+								
+							}
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
 							const portStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
@@ -191,6 +185,14 @@ export async function connectToConduit(
 				}
 			},
 			open(socket) {
+				// First, authenticate!
+				if (secretKey) {
+					logger.debugVerbose("Authenticating to server with secret key " + secretKey);
+					const keyMessage = encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array(new TextEncoder().encode(secretKey)));
+					socket.write(keyMessage);
+					return;
+				}
+
 				logger.debugVerbose("Connected successfully to server");
 				// called on the opening of a new connection to the conduit
 				// first step is to request our port on the conduit server

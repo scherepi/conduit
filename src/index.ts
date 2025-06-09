@@ -113,6 +113,7 @@ program
 	)
 	.option("-d, --subdomain <SUBDOMAIN>", "The subdomain to request from the server")
 	.option("-k, --keepAlive", "Keeps this connection alive indefinitely", false)
+	.option("-s, --secret <SECRET>", "Secret key for authentication (optional) (default: environment variable CONDUIT_SECRET)")
 	.option("-v, --verbose", "Enable verbose output")
 	.action((port, options) => {
 		logger.verbose = options.verbose ? true : false;
@@ -141,17 +142,21 @@ program
 			}
 		}
 
+		const secret = options.secret || process.env.CONDUIT_SECRET; 
+
 		connectToConduit(
 			server,
 			parseInt(port),
 			options.keepAlive,
 			parseInt(options.remotePort) || null,
-			subdomain
+			subdomain,
+			secret
 		);
 	});
 
 program
 	.command("server")
+	.description("Start a remote conduit server")
 	.option("-d, --domain <DOMAIN>", "The domain to use for web traffic tunneling (required for HTTPS)")
 	.option(
 		"-b, --bind <BIND_ADDR>",
@@ -173,22 +178,22 @@ program
 		"the maximum port of the port range on which you want to allow incoming connections",
 		"65535"
 	)
-	.action((options, command) => {
+	.option("-s, --secret <SECRET>", "Secret key for authentication (optional) (default: environment variable CONDUIT_SECRET)")
+	.action((options, _command) => {
 		if (options.minPort && isNaN(parseInt(options.minPort))) {
 			logger.error("Minimum port needs to be valid integer.");
 		}
 		if (options.maxPort && isNaN(parseInt(options.maxPort))) {
 			logger.error("Maximum port needs to be valid integer.");
 		}
-
-
+		const secret = options.secret || process.env.CONDUIT_SECRET; 
 
 		startServer(
 			options.bind,
 			options.tunnelBind,
 			parseInt(options.minPort),
 			parseInt(options.maxPort),
-			options.domain || null,
+			options.domain,
 		);
 	});
 
