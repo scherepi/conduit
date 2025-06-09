@@ -138,13 +138,13 @@ export async function startServer(
 							// if the secret doesn't match, send an error response and close the connection
 							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 							socket.end();
-							logger.warn(`Connection from ${socket.remoteAddress}:${socket.remotePort} rejected due to invalid secret.`);
+							logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
 							return;
 						}
 					} else if (secret) { // if a secret is set but the client doesn't have one, reject the connection
 						socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 						socket.end();
-						logger.warn(`Connection from ${socket.remoteAddress}:${socket.remotePort} rejected due to no secret.`);
+						logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
 					}
 
 					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
@@ -218,6 +218,7 @@ export async function startServer(
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.UNSUPPORTED])
 							));
+							logger.warn(`Subdomain request from ${socket.remoteAddress} rejected due to no hostname configured.`);
 							return;
 						}
 

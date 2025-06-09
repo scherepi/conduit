@@ -194,6 +194,7 @@ program
 			parseInt(options.minPort),
 			parseInt(options.maxPort),
 			options.domain,
+			secret
 		);
 	});
 
