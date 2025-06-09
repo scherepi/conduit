@@ -12,6 +12,7 @@ type ClientData = {
 	subdomain: string | null;
 	parser: MessageParser;
 	listener: Bun.TCPSocketListener<ServerListenerData> | null; // the listener server that is created for this client
+	remotePort: number; // the port of the client connection-- we store this for logging, because after the connection is closed this data is lost
 };
 type ServerListenerData = { connectionId: number };
 
@@ -266,12 +267,13 @@ export async function startServer(
 					subdomain: null,
 					parser: new MessageParser(),
 					listener: null,
+					remotePort: socket.remotePort,
 				};
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener\
 				
-				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
+				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.data.remotePort}`);
 				if (socket.data.listener) {
 					socket.data.listener.stop();
 					if (socket.data.subdomain) {
