@@ -86,9 +86,14 @@ export async function connectToConduit(
 								logger.error("You were kicked out of the playground for throwing sand at other kids. (Authentication Failure)");
 								process.exit(1);
 							} else if (secretStatus == SECRET_STATUS.NOT_SET || secretStatus == SECRET_STATUS.SUCCESS) {
-								secretStatus == SECRET_STATUS.NOT_SET ? logger.warn("You didn't need a key, silly! This party is open invite!") : logger.info("Authenticated successfully!");
+								if (secretStatus == SECRET_STATUS.NOT_SET) {
+									logger.warn("You didn't need a key silly! This party is open invite!")
+								} else {
+									logger.info("Authenticated successfully!");
+								}
+								
 								// Do the thing to log in:
-								logger.info("Connected successfully to server");
+								logger.debugVerbose("Connected successfully to server");
 								// called on the opening of a new connection to the conduit
 								// first step is to request our port on the conduit server
 								if (remotePort) {

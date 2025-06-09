@@ -7,11 +7,11 @@ export const caddyPort = 2019; // the caddy admin port
 // status info about a client connection
 type ClientData = {
 	hasRequestedPort: boolean;
+	hasAuthenticated: boolean; // this will also be true if the secret isn't set
 	port: number | null;
 	subdomain: string | null;
 	parser: MessageParser;
 	listener: Bun.TCPSocketListener<ServerListenerData> | null; // the listener server that is created for this client
-	remotePort: number; // the remote port of the client connection-- we store this for logging because it's not available after the connection closes
 };
 type ServerListenerData = { connectionId: number };
 
@@ -139,13 +139,13 @@ export async function startServer(
 							// if the secret doesn't match, send an error response and close the connection
 							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 							socket.end();
-							logger.warn(`Connection from ${socket.remoteAddress}:${socket.data.remotePort} rejected due to invalid secret.`);
+							logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
 							return;
 						}
-					} else if (secret) { // if a secret is set but the client doesn't have one, reject the connection
+					} else if (secret && !socket.data.hasAuthenticated) { // if a secret is set but the client doesn't have one, reject the connection
 						socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 						socket.end();
-						logger.warn(`Connection from ${socket.remoteAddress}:${socket.data.remotePort} rejected due to no secret.`);
+						logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
 					}
 
 					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
@@ -219,7 +219,7 @@ export async function startServer(
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.UNSUPPORTED])
 							));
-							logger.warn(`Subdomain request from ${socket.remoteAddress}:${socket.data.remotePort} rejected due to no hostname configured.`);
+							logger.warn(`Subdomain request from ${socket.remoteAddress} rejected due to no hostname configured.`);
 							return;
 						}
 
@@ -257,17 +257,17 @@ export async function startServer(
 				logger.success(`New connection from ${socket.remoteAddress}:${socket.remotePort}`);
 				socket.data = {
 					hasRequestedPort: false,
+					hasAuthenticated: secret ? false : true, // if no secret is set, the client is automatically authenticated
 					port: null,
 					subdomain: null,
 					parser: new MessageParser(),
 					listener: null,
-					remotePort: socket.remotePort,
 				};
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener\
 				
-				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.data.remotePort}`);
+				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
 				if (socket.data.listener) {
 					socket.data.listener.stop();
 					if (socket.data.subdomain) {
