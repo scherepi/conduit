@@ -2,13 +2,13 @@
 
 <img src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png" alt="Conduit">
 
-</div>
 <br>
 
 <br>
 
 [![][npm-shield]][npm-link]
 [![][last-updated-shield]][npm-link]
+</div>
 
 <!-- for a divider line -->
 <h1 align="center"></h1>
