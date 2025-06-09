@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png">
+<img src="https://raw.githubusercontent.com/scherepi/conduit/main/.github/header.png" alt="Conduit">
 
 </div>
 <br>
@@ -85,7 +85,7 @@ You'll also need to add a DNS record to point `*.yourdomain.com` at your server.
 ## How does it work?
 
 `conduit` serves as a gateway between the public internet and local applications running on your machine, making it easy to showcase your work or spin up a webhook without the overhead of running your own server.
-![`conduit` networking diagram](https://raw.githubusercontent.com/scherepi/conduit/main/.github/diagram.png)
+![`conduit` networking diagram](https://raw.githubusercontent.com/scherepi/conduit/main/.github/protocol-diagram.png)
 
 `conduit` opens a control port on `4225`, where clients connect to open a tunnel. On connection, the client sends a request to reserve a specific port or subdomain (or port 0 to represent a random port if none was specified). The server responds with a message signifying success or failure, which is relayed back to the user. Once an unused port is found, the server starts listening for connections on that port.
 
