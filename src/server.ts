@@ -141,6 +141,10 @@ export async function startServer(
 							logger.warn(`Connection from ${socket.remoteAddress}:${socket.remotePort} rejected due to invalid secret.`);
 							return;
 						}
+					} else if (secret) { // if a secret is set but the client doesn't have one, reject the connection
+						socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
+						socket.end();
+						logger.warn(`Connection from ${socket.remoteAddress}:${socket.remotePort} rejected due to no secret.`);
 					}
 
 					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
