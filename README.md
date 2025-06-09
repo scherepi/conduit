@@ -58,6 +58,7 @@ Options:
   -p, --remotePort <PORT>      The remote port to request on the conduit server (default: 0)
   -d, --subdomain <SUBDOMAIN>  The subdomain to request from the server
   -k, --keepAlive              Keeps this connection alive indefinitely (default: false)
+  -s, --secret <SECRET>        Secret key for authentication (optional) (default: environment variable CONDUIT_SECRET)
   -v, --verbose                Enable verbose output
   -h, --help                   Display help for command
 ```
@@ -67,14 +68,17 @@ Options:
 Self-hosting `conduit` is just as easy. You can start a server on port `4225` just by running `conduit server`, or you can configure it more:
 
 ```fish
+Start a remote conduit server
+
 Usage: conduit server [options]
 
 Options:
   -d, --domain <DOMAIN>            The domain to use for web traffic tunneling (required for HTTPS)
-  -b, --bind <BIND_ADDR>           the address to bind the server to (default: 0.0.0.0)
-  -t, --tunnelBind <BIND_TUNNELS>  the address to bind tunnels to (default: 0.0.0.0)
-  -m, --minPort <MIN_PORT>         the minimum port of the port range on which you want to allow incoming conections (default: 1024)
-  -M, --maxPort <MAX_PORT>         the maximum port of the port range on which you want to allow incoming connections (default: 65535)
+  -b, --bind <BIND_ADDR>           The address to bind the server to (default: 0.0.0.0)
+  -t, --tunnelBind <BIND_TUNNELS>  The address to bind tunnels to (default: 0.0.0.0)
+  -m, --minPort <MIN_PORT>         The minimum port of the port range on which you want to allow incoming conections (default: 1024)
+  -M, --maxPort <MAX_PORT>         The maximum port of the port range on which you want to allow incoming connections (default: 65535)
+  -s, --secret <SECRET>            Secret key for authentication (optional) (default: environment variable CONDUIT_SECRET)
   -h, --help                       Display help for command
 ```
 
