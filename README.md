@@ -8,6 +8,7 @@
 <br>
 
 [![][npm-shield]][npm-link]
+[![][last-updated-shield]][npm-link]
 
 <!-- for a divider line -->
 <h1 align="center"></h1>
@@ -121,4 +122,5 @@ Conduit relies on [Caddy](https://caddyserver.com/) for automatically managing H
 <img src="https://assets.hackclub.com/flag-standalone.png" alt="Hack Club Flag" height="64">
 
 [npm-shield]: https://img.shields.io/npm/v/conduit-ws?style=flat-square&color=%23b2ff00
+[last-updated-shield]: https://img.shields.io/npm/last-update/conduit-ws?style=flat-square&color=%23b2ff00
 [npm-link]: https://www.npmjs.com/package/conduit-ws
