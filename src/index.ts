@@ -160,22 +160,22 @@ program
 	.option("-d, --domain <DOMAIN>", "The domain to use for web traffic tunneling (required for HTTPS)")
 	.option(
 		"-b, --bind <BIND_ADDR>",
-		"the address to bind the server to",
+		"The address to bind the server to",
 		"0.0.0.0"
 	)
 	.option(
 		"-t, --tunnelBind <BIND_TUNNELS>",
-		"the address to bind tunnels to",
+		"The address to bind tunnels to",
 		"0.0.0.0"
 	)
 	.option(
 		"-m, --minPort <MIN_PORT>",
-		"the minimum port of the port range on which you want to allow incoming conections",
+		"The minimum port of the port range on which you want to allow incoming conections",
 		"1024"
 	)
 	.option(
 		"-M, --maxPort <MAX_PORT>",
-		"the maximum port of the port range on which you want to allow incoming connections",
+		"The maximum port of the port range on which you want to allow incoming connections",
 		"65535"
 	)
 	.option("-s, --secret <SECRET>", "Secret key for authentication (optional) (default: environment variable CONDUIT_SECRET)")
