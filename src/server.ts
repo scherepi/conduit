@@ -11,6 +11,7 @@ type ClientData = {
 	subdomain: string | null;
 	parser: MessageParser;
 	listener: Bun.TCPSocketListener<ServerListenerData> | null; // the listener server that is created for this client
+	remotePort: number; // the remote port of the client connection-- we store this for logging because it's not available after the connection closes
 };
 type ServerListenerData = { connectionId: number };
 
@@ -138,13 +139,13 @@ export async function startServer(
 							// if the secret doesn't match, send an error response and close the connection
 							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 							socket.end();
-							logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
+							logger.warn(`Connection from ${socket.remoteAddress}:${socket.data.remotePort} rejected due to invalid secret.`);
 							return;
 						}
 					} else if (secret) { // if a secret is set but the client doesn't have one, reject the connection
 						socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
 						socket.end();
-						logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
+						logger.warn(`Connection from ${socket.remoteAddress}:${socket.data.remotePort} rejected due to no secret.`);
 					}
 
 					if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
@@ -218,7 +219,7 @@ export async function startServer(
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
 								new Uint8Array([REQUEST_STATUS.UNSUPPORTED])
 							));
-							logger.warn(`Subdomain request from ${socket.remoteAddress} rejected due to no hostname configured.`);
+							logger.warn(`Subdomain request from ${socket.remoteAddress}:${socket.data.remotePort} rejected due to no hostname configured.`);
 							return;
 						}
 
@@ -260,12 +261,13 @@ export async function startServer(
 					subdomain: null,
 					parser: new MessageParser(),
 					listener: null,
+					remotePort: socket.remotePort,
 				};
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener\
 				
-				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.remotePort}`);
+				logger.warn(`Connection closed from ${socket.remoteAddress}:${socket.data.remotePort}`);
 				if (socket.data.listener) {
 					socket.data.listener.stop();
 					if (socket.data.subdomain) {
