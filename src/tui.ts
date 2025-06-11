@@ -1,12 +1,14 @@
 var blessed = require('neo-blessed');
 
+import { getActiveSubdomains } from './server.ts';
+
 var screen = blessed.screen({
     smartCSR: true
 });
 
 screen.title = 'blessed + bun?'
 
-const tabString = "{center}Tabs{/center}\n\n{center}Status{/center}\n{center}Connections{/center}";
+const tabString = "{center}{black-fg}{white-bg}Tabs{/white-bg}{/black-fg}{/center}\n\n{center}Status{/center}\n{center}Connections{/center}";
 
 var contentBox = blessed.box({
     top: 'center',
@@ -79,6 +81,15 @@ screen.key('c', function(ch, key) {
     tabBox.setLine(3, '{center}{blue-bg}Connections{/blue-bg}{/center}');
     contentBox.setContent('{center}Connections{/center}');
     contentBox.setLine(2, '{center}Subdomains{/center}');
+    screen.render();
+})
+
+// Status tab, displays server status, uptime, etc.
+screen.key('s', function(ch, key) {
+    tabBox.setContent(tabString);
+    contentBox.style.bg = 'black';
+    tabBox.setLine(2, '{center}{blue-bg}Status{/blue-bg}{/center}');
+    contentBox.setContent('\n\n{center}{green-fg}Server Status{/green-fg}{/center}');
     screen.render();
 })
 

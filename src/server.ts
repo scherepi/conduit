@@ -277,3 +277,10 @@ export async function startServer(
 
 	logger.success(`Conduit server listening on port ${controlPort}`);
 }
+
+
+// EXPOSURE FUNCTIONS FOR TUI USAGE
+
+export function getActiveSubdomains() {
+	return 
+}
