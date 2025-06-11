@@ -6,11 +6,13 @@ var screen = blessed.screen({
 
 screen.title = 'blessed + bun?'
 
-var box = blessed.box({
+const tabString = "{center}Tabs{/center}\n\n{center}Status{/center}\n{center}Connections{/center}";
+
+var contentBox = blessed.box({
     top: 'center',
-    left: 'center',
-    width: '50%',
-    height: '50%',
+    right: '0',
+    width: '80%',
+    height: '100%',
     content: 'Hello {bold}world{/bold}!',
     tags: true,
     border: {
@@ -18,34 +20,81 @@ var box = blessed.box({
     },
     style: {
         fg: 'white',
-        bg: 'magenta',
+        bg: '#ff8c0d',
         border: {
             fg: '#f0f0f0'
         },
         hover: {
             bg: 'green'
         }
-    }
+    },
+    clickable: true
 });
 
-screen.append(box);
+var tabBox = blessed.box({
+    top: 'center',
+    left: '0',
+    width: '20%',
+    height: '100%',
+    content: tabString,
+    tags: true,
+    border: {
+        type: 'line'
+    },
+    style: {
+        fg: 'white',
+        bg: 'black',
+        border: {
+            fg: '#f0f0f0'
+        },
+        hover: {
+            bg: 'green'
+        }
+    },
+    clickable: true
+});
 
-box.on('click', function(data) {
-    box.setContent('{center}Some different {red-fg}content{/red-fg}.{/center}');
+var subdomainList = blessed.list({
+
+});
+
+screen.append(tabBox);
+screen.append(contentBox);
+
+contentBox.on('click', function(data) {
+    contentBox.setContent('{center}Some different {red-fg}content{/red-fg}.{/center}');
     screen.render();
 })
 
-box.key('enter', function(ch, key) {
-    box.setContent('{right}test test {black-fg}test{/black-fg} {/right}\n');
-    box.setLine(1, 'bar')
-    box.insertLine(1, 'foo')
+contentBox.key('enter', function(ch, key) {
+    contentBox.setContent('{right}test test {black-fg}test{/black-fg} {/right}\n');
+    contentBox.setLine(1, 'bar')
+    contentBox.insertLine(1, 'foo')
     screen.render();
 })
+
+// Connections tab, lets you see active connections and leased subdomains
+screen.key('c', function(ch, key) {
+    tabBox.setContent(tabString);
+    tabBox.setLine(3, '{center}{blue-bg}Connections{/blue-bg}{/center}');
+    contentBox.setContent('{center}Connections{/center}');
+    contentBox.setLine(2, '{center}Subdomains{/center}');
+    screen.render();
+})
+
+screen.key('d', function(ch, key) {
+    contentBox.insertLine(3, '[secret, gus, test]');
+    screen.render();
+})
+
+
 
 screen.key(['escape', 'q', 'C-c'], function (ch, key) {
     return process.exit(0);
 })
 
-box.focus();
+tabBox.setLine(2, '{center}{blue-bg}Status{/blue-bg}{/center}');
+
+contentBox.focus();
 
 screen.render();
