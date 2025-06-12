@@ -282,5 +282,11 @@ export async function startServer(
 // EXPOSURE FUNCTIONS FOR TUI USAGE
 
 export function getActiveSubdomains() {
-	return 
+	// Returns String[] from Set of subdomains currently in use
+	return Array.from(subdomainsInUse.values());
+}
+
+export function getPortsInUse() {
+	// Returns String[] of the ports currently in use as remote ports on the server
+	return Array.from(portsInUse.values())
 }

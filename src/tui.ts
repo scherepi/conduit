@@ -8,13 +8,13 @@ var screen = blessed.screen({
 
 screen.title = 'blessed + bun?'
 
-const tabString = "{center}{black-fg}{white-bg}Tabs{/white-bg}{/black-fg}{/center}\n\n{center}Status{/center}\n{center}Connections{/center}";
+const tabString = "\t{white-fg}{blue-bg}Status{/blue-bg}{/white-fg}\t\tConnections";
 
 var contentBox = blessed.box({
     top: 'center',
     right: '0',
-    width: '80%',
-    height: '100%',
+    width: '100%',
+    height: '90%',
     content: 'Hello {bold}world{/bold}!',
     tags: true,
     border: {
@@ -34,10 +34,9 @@ var contentBox = blessed.box({
 });
 
 var tabBox = blessed.box({
-    top: 'center',
-    left: '0',
-    width: '20%',
-    height: '100%',
+    top: '0',
+    width: '100%',
+    height: '10%',
     content: tabString,
     tags: true,
     border: {
@@ -56,10 +55,6 @@ var tabBox = blessed.box({
     clickable: true
 });
 
-var subdomainList = blessed.list({
-
-});
-
 screen.append(tabBox);
 screen.append(contentBox);
 
@@ -75,21 +70,21 @@ contentBox.key('enter', function(ch, key) {
     screen.render();
 })
 
-// Connections tab, lets you see active connections and leased subdomains
-screen.key('c', function(ch, key) {
-    tabBox.setContent(tabString);
-    tabBox.setLine(3, '{center}{blue-bg}Connections{/blue-bg}{/center}');
-    contentBox.setContent('{center}Connections{/center}');
-    contentBox.setLine(2, '{center}Subdomains{/center}');
-    screen.render();
-})
-
+const statusActive = "\t{white-fg}{blue-bg}Status{/blue-bg}{/white-fg}\t\tConnections"
 // Status tab, displays server status, uptime, etc.
 screen.key('s', function(ch, key) {
-    tabBox.setContent(tabString);
-    contentBox.style.bg = 'black';
-    tabBox.setLine(2, '{center}{blue-bg}Status{/blue-bg}{/center}');
+    tabBox.setContent(statusActive);
     contentBox.setContent('\n\n{center}{green-fg}Server Status{/green-fg}{/center}');
+    screen.render();
+});
+
+
+// Connections tab, lets you see active connections and leased subdomains
+const connectionsActive = "\tStatus\t\t{white-fg}{blue-bg}Connections{/white-fg}{/blue-bg}"
+screen.key('c', function(ch, key) {
+    tabBox.setContent(connectionsActive);
+    contentBox.setContent('{center}Connections{/center}');
+    contentBox.setLine(2, '{center}Subdomains{/center}');
     screen.render();
 })
 
