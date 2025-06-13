@@ -278,3 +278,90 @@ export async function startServer(
 
 	logger.success(`Conduit server listening on port ${controlPort}`);
 }
+
+// TUI STUFF
+
+// blessed setup
+var screen = blessed.screen({
+	smartCSR: true
+})
+
+screen.title = 'Conduit Server'
+
+const tabString = "\t{white-fg}{blue-bg}Status{/blue-bg}{/white-fg}\t\tConnections";
+
+var contentBox = blessed.box({
+	top: 'center',
+	right: '0',
+	width: '100%',
+	height: '60%',
+	content: 'Hello {bold}world{/bold}!',
+	tags: true,
+	border: {
+		type: 'line'
+	},
+	style: {
+		fg: 'white',
+		bg: "#ff8c0d",
+		border: {
+			fg: "#f0f0f0",
+		},
+		hover: {
+			bg: 'green'
+		}
+	},
+	clickable: true
+});
+
+var tabBox = blessed.box({
+	top: '0',
+	width: '100%',
+	height: '10%',
+	content: tabString,
+	tags: true,
+	border: {
+		type: 'line'
+	},
+	style: {
+		fg: 'white',
+		bg: 'black',
+		border: {
+			fg: "#f0f0f0"
+		},
+		hover: {
+			bg: 'green'
+		}
+	},
+	clickable: true
+});
+
+var outputBox = blessed.box({
+	top: '0',
+	width: '100%',
+	height: '30%',
+	content: "{center}Console output goes here.{/center}",
+	tags: true,
+	border: {
+		type: 'line'
+	},
+	style: {
+		fg: 'white',
+		bg: 'blue',
+		border: {
+			fg: "#f0f0f0"
+		},
+		hover: {
+			bg: 'green'
+		}
+	},
+	clickable: true
+});
+
+screen.append(tabBox);
+screen.append(contentBox);
+screen.append(outputBox);
+
+contentBox.on('click', function(data) {
+	contentBox.setContent('Test');
+	screen.render();
+})
