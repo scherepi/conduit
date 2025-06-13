@@ -1,12 +1,10 @@
 var blessed = require('neo-blessed');
 
-import { getActiveSubdomains } from './server.ts';
-
 var screen = blessed.screen({
     smartCSR: true
 });
 
-screen.title = 'blessed + bun?'
+screen.title = 'Conduit Server'
 
 const tabString = "\t{white-fg}{blue-bg}Status{/blue-bg}{/white-fg}\t\tConnections";
 
@@ -89,17 +87,13 @@ screen.key('c', function(ch, key) {
 })
 
 screen.key('d', function(ch, key) {
-    contentBox.insertLine(3, '[secret, gus, test]');
+    contentBox.insertLine(3, '{center}[secret, gus, test]{/center}');
     screen.render();
 })
-
-
 
 screen.key(['escape', 'q', 'C-c'], function (ch, key) {
     return process.exit(0);
 })
-
-tabBox.setLine(2, '{center}{blue-bg}Status{/blue-bg}{/center}');
 
 contentBox.focus();
 
