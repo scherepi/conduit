@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import { connectToConduit } from "./client";
-import { startServer } from "./server";
+import { startServer, startTUI } from "./server";
 import logger from "./logger";
 import chalk from "chalk";
 import wrapAnsi from "wrap-ansi";
@@ -190,6 +190,7 @@ program
 			parseInt(options.maxPort),
 			options.domain || null,
 		);
+		startTUI();
 	});
 
 if (process.argv.length <= 2) {
