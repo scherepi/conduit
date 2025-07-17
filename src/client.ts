@@ -19,7 +19,17 @@ let assignedPort: number = 0;
 const pendingData = new Map<number, Array<Uint8Array>>(); // data that is pending to be sent to the local port, index is connection ID
 const parser = new MessageParser(); // parser for incoming messages from the conduit server
 
-// the central function that connects to the conduit server
+/**
+ * The central function for the client to connect to a running Conduit server. 
+ * @param hostname - The hostname of the Conduit server.
+ * @param localPort - The port on the client's machine to forward to the server.
+ * @param keepAlive - Whether or not to maintain the connection longer than the default six hours.
+ * @param remotePort - The remote port to request on the server.
+ * @param subdomain - The subdomain to request on the server.
+ * @param secretKey - The secret key with which to authenticate to the server.
+ * @returns nothing.
+ */
+
 export async function connectToConduit(
 	hostname: string,
 	localPort: number,
@@ -190,7 +200,8 @@ export async function connectToConduit(
 				}
 			},
 			open(socket) {
-				// First, authenticate!
+				// First thing's first, we gotta make sure we're secure.
+				// Now, authenticate!
 				if (secretKey) {
 					logger.debugVerbose("Authenticating to server with secret key " + secretKey);
 					const keyMessage = encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array(new TextEncoder().encode(secretKey)));
@@ -281,7 +292,11 @@ export async function connectToConduit(
 	
 }
 
-// connection from the conduit client to the local port
+/**
+ * Creates a local tunnel on the client's machine between the Conduit client and the local port to be forwarded.
+ * @param connectionId - The connection ID provided by the Conduit server, to identify different communication streams.
+ * @param localPort - The local port to create a tunnel to.
+ */
 async function establishLocalTunnel(connectionId: number, localPort: number) {
 	localTunnels[connectionId] = await Bun.connect({
 		hostname: "localhost",
