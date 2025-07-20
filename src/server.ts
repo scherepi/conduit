@@ -1,12 +1,15 @@
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
+import { generateKeyPair, deriveSharedSecret, exportKey, importKey, encryptData, decryptData } from "./crypto";
 import logger from "./logger";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS, SECRET_STATUS } from "./messages";
 const controlPort = 4225;
 export const caddyPort = 2019; // the caddy admin port
+let serverKeyPair: CryptoKeyPair;
 
 // status info about a client connection
 type ClientData = {
 	hasRequestedPort: boolean;
+	symKey: CryptoKey | null;			// This is the symmetric key used for encrypting client-server communication, generated through initial ECDH
 	hasAuthenticated: boolean; // this will also be true if the secret isn't set
 	port: number | null;
 	subdomain: string | null;
@@ -29,7 +32,6 @@ let minimumPort: number = 1024;
 let maximumPort: number = 65535;
 
 function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
-
 	const listener = Bun.listen<ServerListenerData>({
 		hostname: tunnelBindAddress,
 		port,
@@ -98,6 +100,7 @@ export async function startServer(
 	hostname?: string,
 	secret?: string
 ) {
+	serverKeyPair = await generateKeyPair();
 	tunnelBindAddress = tunnelAddress;
 	minimumPort = minPort;
 	maximumPort = maxPort;
@@ -126,36 +129,62 @@ export async function startServer(
 
 				for (const message of socket.data.parser.parseMessages()) {
 
-					// if the client has yet to request a port, handle that before anything else
+					// make sure encryption is in place first
+					if (socket.data.symKey == null) {
+						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+						logger.infoVerbose("Beginning ECDH from server-side. Sending public key.");
+						socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, await exportKey(serverKeyPair.publicKey)));
+						continue;
+					}
+
+					if (message.messageType == MESSAGE_TYPE.CRYPTO_EXCHANGE) {
+						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
+						if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
+						const publicReceived: CryptoKey = await importKey(message.payload)
+						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
+						continue;
+					}
+					// then, if the client has yet to request a port, handle that before anything else
+					
 					if (!socket.data.hasRequestedPort) {
 						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 
 						// also handle secret exchanges before anything else
 						if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
-							const receivedSecret = new TextDecoder().decode(message.payload || new Uint8Array());
+							const receivedSecret = new TextDecoder().decode(
+								await decryptData(socket.data.symKey, message.payload || new Uint8Array())
+							);
 							if (secret && receivedSecret === secret) {
 								// the secret is correct, send a success response
-								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.SUCCESS])));
+								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
+									await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.SUCCESS]))
+								));
 								logger.info(`Connection from ${socket.remoteAddress} authenticated successfully.`);
 								socket.data.hasAuthenticated = true;
 								continue;
 							} else {
 								// if the secret doesn't match, send an error response and close the connection
-								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
+								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
+									await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.REJECTED]))
+								));
 								socket.end();
 								logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
 								return;
 							}
 						} else if (secret && !socket.data.hasAuthenticated) { // if a secret is set but the client doesn't have one, reject the connection
-							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array([SECRET_STATUS.REJECTED])));
-							socket.end();
+							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
+								await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.REJECTED]))
+							));
 							logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
 						}
 
 						if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
 
-						const requestedPort = message.payload
-							? ((message.payload?.[0] ?? 0) << 8) | (message.payload?.[1] ?? 0)
+						const decryptedPayload = message.payload ? new Uint8Array(await decryptData(socket.data.symKey, message.payload)) : null;
+
+						const requestedPort = decryptedPayload
+							? ((decryptedPayload[0] ?? 0) << 8) | (decryptedPayload[1] ?? 0)
 							: 0;
 
 						if (portsInUse.has(requestedPort) || isNaN(requestedPort)) {
@@ -163,7 +192,7 @@ export async function startServer(
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.PORT_RESPONSE,
-								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
 							);
 							socket.write(response);
 						} else {
@@ -173,7 +202,7 @@ export async function startServer(
 								const response = encodeMessage(
 									0,
 									MESSAGE_TYPE.PORT_RESPONSE,
-									new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+									await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
 								);
 								socket.write(response);
 								return;
@@ -194,13 +223,13 @@ export async function startServer(
 								response = encodeMessage(
 									0,
 									MESSAGE_TYPE.PORT_ASSIGNED,
-									new Uint8Array([listener.port >> 8, listener.port & 0xff])
+									await encryptData(socket.data.symKey, new Uint8Array([listener.port >> 8, listener.port & 0xff]))
 								);
 							} else {
 								response = encodeMessage(
 									0,
 									MESSAGE_TYPE.PORT_RESPONSE,
-									new Uint8Array([REQUEST_STATUS.SUCCESS])
+									await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.SUCCESS]))
 								);
 							}
 							socket.write(response);
@@ -222,14 +251,14 @@ export async function startServer(
 							socket.write(encodeMessage(
 								0,
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								new Uint8Array([REQUEST_STATUS.UNSUPPORTED])
+								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNSUPPORTED]))
 							));
 							logger.warn(`Subdomain request from ${socket.remoteAddress} rejected due to no hostname configured.`);
 							return;
 						}
 
 						const requestedSubdomain = message.payload
-							? new TextDecoder().decode(message.payload)
+							? new TextDecoder().decode(await decryptData(socket.data.symKey, message.payload))
 							: "";
 
 						if (subdomainsInUse.has(requestedSubdomain)) {
@@ -237,7 +266,7 @@ export async function startServer(
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								new Uint8Array([REQUEST_STATUS.UNAVAILABLE])
+								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
 							);
 							socket.write(response);
 						} else {
@@ -249,7 +278,7 @@ export async function startServer(
 							const response = encodeMessage(
 								0,
 								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								new Uint8Array([REQUEST_STATUS.SUCCESS])
+								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.SUCCESS]))
 							);
 							socket.write(response);
 						}
@@ -262,6 +291,7 @@ export async function startServer(
 				logger.success(`New connection from ${socket.remoteAddress}:${socket.remotePort}`);
 				socket.data = {
 					hasRequestedPort: false,
+					symKey: null,
 					hasAuthenticated: secret ? false : true, // if no secret is set, the client is automatically authenticated
 					port: null,
 					subdomain: null,
