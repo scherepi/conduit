@@ -147,15 +147,44 @@ export async function connectToConduit(
 							}
 							const receivedKey: CryptoKey = await importKey(parsedMessage.payload);
 							sharedSymKey = await deriveSharedSecret(receivedKey, clientKeyPair.privateKey);
-							socket.write(
-								encodeMessage(
-									0,
-									MESSAGE_TYPE.CRYPTO_EXCHANGE,
-									await exportKey(clientKeyPair.publicKey)
-								)
-							)
-							break;
+							logger.debugVerbose("Successfully generated symmetric key from key exchange!")
 
+							if (secretKey) {
+								logger.debugVerbose("Authenticating to server with secret key " + secretKey);
+								const keyMessage = encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array(new TextEncoder().encode(secretKey)));
+								socket.write(keyMessage);
+								return;
+							}
+
+							logger.debugVerbose("Connected successfully to server, with encryption");
+							// called on the opening of a new connection to the conduit
+							// first step is to request our port on the conduit server
+							if (remotePort) {
+								logger.debugVerbose(`Requesting remote port ${remotePort} from Conduit server`);
+								const portRequestMessage = encodeMessage(
+									0,
+									MESSAGE_TYPE.PORT_REQUEST,
+									await encryptData(sharedSymKey, new Uint8Array([remotePort >> 8, remotePort & 0xff]))
+								);
+								socket.write(portRequestMessage);
+								assignedPort = remotePort; // set the assigned port to the remote port we requested
+							} else {
+								socket.write(await encryptData(sharedSymKey, encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null)));
+							}
+							
+							// request a subdomain if one is provided
+							if (subdomain) {
+								logger.debugVerbose(`Requesting subdomain ${subdomain} from Conduit server.`);
+								socket.write(
+									encodeMessage(
+										0,
+										MESSAGE_TYPE.SUBDOMAIN_REQUEST,
+										await encryptData(sharedSymKey, new Uint8Array(new TextEncoder().encode(subdomain)))
+									)
+								);
+							}
+							
+							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
 							const portStatus = parsedMessage.payload ? decryptedPayload[0] : undefined;
 							if (portStatus == REQUEST_STATUS.SUCCESS) {
@@ -229,38 +258,6 @@ export async function connectToConduit(
 				logger.debugVerbose("Sending ECDH public key to Conduit server.");
 				const publicKeyMessage = encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, new Uint8Array(new TextEncoder().encode(JSON.stringify(publicKey)))); // Yes, this is a total mess.
 				socket.write(publicKeyMessage);
-				if (secretKey) {
-					logger.debugVerbose("Authenticating to server with secret key " + secretKey);
-					const keyMessage = encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, new Uint8Array(new TextEncoder().encode(secretKey)));
-					socket.write(keyMessage);
-					return;
-				}
-
-				logger.debugVerbose("Connected successfully to server");
-				// called on the opening of a new connection to the conduit
-				// first step is to request our port on the conduit server
-				if (remotePort) {
-					const portRequestMessage = encodeMessage(
-						0,
-						MESSAGE_TYPE.PORT_REQUEST,
-						new Uint8Array([remotePort >> 8, remotePort & 0xff])
-					);
-					socket.write(portRequestMessage);
-					assignedPort = remotePort; // set the assigned port to the remote port we requested
-				} else {
-					socket.write(encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null));
-				}
-				
-				// request a subdomain if one is provided
-				if (subdomain) {
-					socket.write(
-						encodeMessage(
-							0,
-							MESSAGE_TYPE.SUBDOMAIN_REQUEST,
-							new Uint8Array(new TextEncoder().encode(subdomain))
-						)
-					);
-				}
 			},
 
 			close(_socket, _error) {
