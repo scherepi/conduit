@@ -8,7 +8,7 @@ import MessageParser, {
 	REQUEST_STATUS,
 	SECRET_STATUS
 } from "./messages";
-import { generateKeyPair, deriveSharedSecret, importKey } from "./crypto"
+import { generateKeyPair, deriveSharedSecret, importKey, exportKey, decryptData, encryptData } from "./crypto"
 import logger from "./logger";
 import { isErrored } from "stream";
 
@@ -57,6 +57,11 @@ export async function connectToConduit(
 				parser.addData(data);
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
+					let decryptedPayload: Uint8Array = new Uint8Array();
+					// If we need to decrypt, we do it first.
+					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE) {
+						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload ? parsedMessage.payload : new Uint8Array());
+					}
 					logger.debugVerbose(
 						`[MESSAGE_TYPE: ${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`
 					);
@@ -70,9 +75,7 @@ export async function connectToConduit(
 							);
 
 							if (localTunnels[parsedMessage.connectionId]) {
-								localTunnels[parsedMessage.connectionId]?.write(
-									parsedMessage.payload || new Uint8Array()
-								);
+								localTunnels[parsedMessage.connectionId]?.write(decryptedPayload);
 							} else {
 								logger.warnVerbose(
 									`Local tunnel ${parsedMessage.connectionId} is not open, buffering data`
@@ -82,7 +85,7 @@ export async function connectToConduit(
 								}
 								pendingData
 									.get(parsedMessage.connectionId)
-									?.push(parsedMessage.payload || new Uint8Array());
+									?.push(decryptedPayload);
 							}
 							break;
 						case MESSAGE_TYPE.NEW_CONNECTION:
@@ -95,7 +98,7 @@ export async function connectToConduit(
 							break;
 						case MESSAGE_TYPE.SECRET_EXCHANGE:
 							// the client is receiving a message about whether its secret key authenticated it to the server
-							const secretStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
+							const secretStatus = parsedMessage.payload ? decryptedPayload[0] : undefined;
 							if (secretStatus == SECRET_STATUS.REJECTED) {
 								logger.error("You were kicked out of the playground for throwing sand at other kids. (Authentication Failure)");
 								process.exit(1);
@@ -114,7 +117,7 @@ export async function connectToConduit(
 									const portRequestMessage = encodeMessage(
 										0,
 										MESSAGE_TYPE.PORT_REQUEST,
-										new Uint8Array([remotePort >> 8, remotePort & 0xff])
+										await encryptData(sharedSymKey, new Uint8Array([remotePort >> 8, remotePort & 0xff]))
 									);
 									socket.write(portRequestMessage);
 									assignedPort = remotePort; // set the assigned port to the remote port we requested
@@ -128,7 +131,7 @@ export async function connectToConduit(
 										encodeMessage(
 											0,
 											MESSAGE_TYPE.SUBDOMAIN_REQUEST,
-											new Uint8Array(new TextEncoder().encode(subdomain))
+											await encryptData(sharedSymKey, new Uint8Array(new TextEncoder().encode(subdomain)))
 										)
 									);
 								}
@@ -142,12 +145,19 @@ export async function connectToConduit(
 								logger.error("Something went wrong with the key exchange. If this occurs often, please raise an issue in the GitHub repo.");
 								process.exit(1);
 							}
-							const receivedKey = await importKey(parsedMessage.payload);
+							const receivedKey: CryptoKey = await importKey(parsedMessage.payload);
 							sharedSymKey = await deriveSharedSecret(receivedKey, clientKeyPair.privateKey);
+							socket.write(
+								encodeMessage(
+									0,
+									MESSAGE_TYPE.CRYPTO_EXCHANGE,
+									await exportKey(clientKeyPair.publicKey)
+								)
+							)
 							break;
 
 						case MESSAGE_TYPE.PORT_RESPONSE:
-							const portStatus = parsedMessage.payload ? parsedMessage.payload[0] : undefined;
+							const portStatus = parsedMessage.payload ? decryptedPayload[0] : undefined;
 							if (portStatus == REQUEST_STATUS.SUCCESS) {
 								// This means that the server gave us the port we requested
 								assignedPort = assignedPort;
@@ -166,7 +176,7 @@ export async function connectToConduit(
 						case MESSAGE_TYPE.PORT_ASSIGNED:
 							// unpack the Uint8Array to a port number
 							assignedPort =
-								((parsedMessage.payload?.[0] ?? 0) << 8) | (parsedMessage.payload?.[1] ?? 0); // dude what does this even mean
+								((decryptedPayload[0] ?? 0) << 8) | (decryptedPayload[1] ?? 0);
 							// assignedPort = parsedMessage.payload && parsedMessage.payload.length >= 2 ? parsedMessage.payload[0] << 8 | parsedMessage.payload[1] : 0;
 							if (assignedPort == 0 || isNaN(assignedPort)) {
 								logger.error("Whoops. The conduit server didn't assign you a port.");
@@ -184,7 +194,7 @@ export async function connectToConduit(
 							);
 							break;
 						case MESSAGE_TYPE.SUBDOMAIN_RESPONSE:
-							const subdomainStatus = parsedMessage.payload ? parsedMessage.payload[0] : 1;
+							const subdomainStatus = parsedMessage.payload ? decryptedPayload[0] : 1;
 							// this message is received when the server reports the availability of a subdomain to the client.
 							if (subdomainStatus == REQUEST_STATUS.SUCCESS) {
 								logger.success(`Successfully acquired subdomain ${subdomain}.${hostname}`);
