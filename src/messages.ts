@@ -93,7 +93,13 @@ export default class MessageParser {
 		return messages;
 	}
 }
-
+/**
+ * Gus's original work of genius - encodes information into a standardized packet (4 byte connection ID, 1 byte message type, 4 byte payload length, and payload of indeterminate length) for transmission.
+ * @param connectionId - The ID of the socket connection this message belongs to.
+ * @param messageType - The message type, used to identify the payload.
+ * @param payload - The given payload, depends on the MESSAGE_TYPE. Can be null for certain MESSAGE_TYPEs. Encrypt unless CRYPTO_EXCHANGE.
+ * @returns A standardized Uint8Array for transmission.
+ */
 export function encodeMessage(
 	connectionId: number,
 	messageType: number,
@@ -114,7 +120,11 @@ export function encodeMessage(
 
 	return buffer;
 }
-
+/**
+ * Parses a Uint8Array standardized packet into its different data fields as encoded with encodeMessage().
+ * @param data - The Uint8Array transmitted. 
+ * @returns A ClientMessage object whose fields can be accessed. Payload must be decrypted separately.
+ */
 export function decodeMessage(data: Uint8Array): ClientMessage {
 	const view = new DataView(data.buffer);
 
