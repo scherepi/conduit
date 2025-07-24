@@ -141,6 +141,8 @@ export async function startServer(
 						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
 						if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
+						logger.info("Received JWK string: " + new TextDecoder().decode(message.payload));
+						logger.info("Parsed object: " + JSON.parse(new TextDecoder().decode(message.payload)))
 						const publicReceived: CryptoKey = await importKey(message.payload)
 						logger.info(publicReceived);
 						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);

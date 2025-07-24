@@ -258,7 +258,7 @@ export async function connectToConduit(
 			async open(socket) {
 				// First thing's first, we gotta make sure we're secure.
 				logger.debugVerbose("Sending ECDH public key to Conduit server.");
-				logger.info("Exported JWK: " + publicKey.kty);
+				logger.info("Exported JWK: " + JSON.stringify(publicKey));
 				const publicKeyMessage = encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, new TextEncoder().encode(JSON.stringify(publicKey))); // Yes, this is a total mess.
 				socket.write(publicKeyMessage);
 			},
