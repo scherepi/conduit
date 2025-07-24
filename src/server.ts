@@ -131,9 +131,11 @@ export async function startServer(
 
 					// make sure encryption is in place first
 					if (socket.data.symKey == null) {
-						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
-						logger.infoVerbose("Beginning ECDH from server-side. Sending public key.");
-						socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, await exportKey(serverKeyPair.publicKey)));
+						logger.info(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+						logger.info("Beginning ECDH from server-side. Sending public key.");
+						const exportedKey = await exportKey(serverKeyPair.publicKey);
+						logger.info("Exported key: " + JSON.stringify(exportedKey));
+						socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, exportedKey));
 						continue;
 					}
 
