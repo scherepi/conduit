@@ -146,7 +146,9 @@ export async function connectToConduit(
 								process.exit(1);
 							}
 							const receivedKey: CryptoKey = await importKey(parsedMessage.payload);
+							logger.info(`Received key ${receivedKey}`);
 							sharedSymKey = await deriveSharedSecret(receivedKey, clientKeyPair.privateKey);
+							logger.info(`Shared sym key: ${sharedSymKey}`);
 							logger.debugVerbose("Successfully generated symmetric key from key exchange!")
 
 							if (secretKey) {
@@ -253,10 +255,11 @@ export async function connectToConduit(
 					}
 				}
 			},
-			open(socket) {
+			async open(socket) {
 				// First thing's first, we gotta make sure we're secure.
 				logger.debugVerbose("Sending ECDH public key to Conduit server.");
-				const publicKeyMessage = encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, new Uint8Array(new TextEncoder().encode(JSON.stringify(publicKey)))); // Yes, this is a total mess.
+				logger.info("Exported JWK: " + publicKey.kty);
+				const publicKeyMessage = encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, new TextEncoder().encode(JSON.stringify(publicKey))); // Yes, this is a total mess.
 				socket.write(publicKeyMessage);
 			},
 

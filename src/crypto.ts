@@ -22,7 +22,7 @@ export async function generateKeyPair(): Promise<CryptoKeyPair> {
 export async function deriveSharedSecret(publicKey: CryptoKey, privateKey: CryptoKey): Promise<CryptoKey> {
     return crypto.subtle.deriveKey(
         {
-            name: "X25519",
+            name: "ECDH",
             public: publicKey
         },
         privateKey,
@@ -57,10 +57,9 @@ export async function importKey(payload: Uint8Array<ArrayBufferLike>): Promise<C
  * @returns A Uint8Array of the CryptoKey as a JWK string.
  */
 export async function exportKey(key: CryptoKey): Promise<Uint8Array> {
+    const jwk = await crypto.subtle.exportKey("jwk", key);
     return new TextEncoder().encode(
-        JSON.stringify(
-            crypto.subtle.exportKey("jwk", key)
-        )
+        JSON.stringify(jwk)
     );
 }
 

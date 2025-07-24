@@ -142,6 +142,7 @@ export async function startServer(
 						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
 						if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
 						const publicReceived: CryptoKey = await importKey(message.payload)
+						logger.info(publicReceived);
 						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
 						continue;
 					}
