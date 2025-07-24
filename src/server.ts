@@ -134,7 +134,7 @@ export async function startServer(
 						logger.info(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 						logger.info("Beginning ECDH from server-side. Sending public key.");
 						const exportedKey = await exportKey(serverKeyPair.publicKey);
-						logger.info("Exported key: " + JSON.stringify(exportedKey));
+						logger.info("Exported key: " + JSON.stringify(new TextDecoder().decode(exportedKey)));
 						socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, exportedKey));
 						continue;
 					}
