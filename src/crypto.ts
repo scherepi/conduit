@@ -40,9 +40,11 @@ export async function deriveSharedSecret(publicKey: CryptoKey, privateKey: Crypt
  * @param payload - The Uint8 array payload of the Javascript Web Key to be turned into a proper CryptoKey object.
  * @returns A CryptoKey object representing the transmitted key.
  */
-export async function importKey(payload: Uint8Array<ArrayBufferLike>): Promise<CryptoKey> {
+export async function importKey(payload: Uint8Array): Promise<CryptoKey> {
+    const decodedPayload = new TextDecoder().decode(payload);
+    const parsedPayload = JSON.parse(decodedPayload);
     return crypto.subtle.importKey("jwk",
-        JSON.parse(new TextDecoder().decode(payload)),
+        parsedPayload,
         {
             name: "ECDH",
             namedCurve: "P-384"
@@ -51,6 +53,7 @@ export async function importKey(payload: Uint8Array<ArrayBufferLike>): Promise<C
         ["deriveKey"]
     )
 }
+const IV_LENGTH = 12; // This is the initalization vector required for AES-GCM encryption. We elect to prepend it to the ciphertext here. I guess it's like salting?
 /**
  * Takes a given CryptoKey object and fully converts it into an encoded JWK string ready for transmission.
  * @param key The CryptoKey object to convert to a JWK string.
@@ -70,13 +73,20 @@ export async function exportKey(key: CryptoKey): Promise<Uint8Array> {
  * @returns An encrypted Uint8Array to be decrypted with the decryptData() function.
  */
 export async function encryptData(symKey: CryptoKey, message: Uint8Array): Promise<Uint8Array> {
-    return new Uint8Array(await crypto.subtle.encrypt(
+    const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+    const ciphertext = await crypto.subtle.encrypt(
         {
-            name: "RSA-OAEP" 
+            name: "AES-GCM",
+            iv: iv
         },
         symKey,
         message
-    ))
+    );
+    // Add our IV to the beginning of the ciphertext before we send it.
+    const result = new Uint8Array(iv.length + ciphertext.byteLength);
+    result.set(iv, 0);
+    result.set(new Uint8Array(ciphertext), iv.length);
+    return result;
 }
 
 /**
@@ -86,11 +96,15 @@ export async function encryptData(symKey: CryptoKey, message: Uint8Array): Promi
  * @returns A decrypted Uint8Array.
  */
 export async function decryptData(symKey: CryptoKey, message: Uint8Array) {
-    return new Uint8Array(await crypto.subtle.decrypt(
+    const iv = message.slice(0, IV_LENGTH);
+    const ciphertext = message.slice(IV_LENGTH);
+    const plaintext = await crypto.subtle.decrypt(
         {
-            name: "RSA-OAEP"
+            name: "AES-GCM",
+            iv: iv
         },
         symKey,
-        message
-    ))
+        ciphertext
+    );
+    return new Uint8Array(plaintext);
 }
