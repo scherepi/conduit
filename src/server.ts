@@ -139,12 +139,17 @@ export async function startServer(
 						const publicReceived: CryptoKey = await importKey(message.payload)
 						logger.info(publicReceived);
 						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
+						logger.info("Got symmetric key from public keys.");
+						logger.info(socket.data.symKey);
 					}
 					// then, if the client has yet to request a port, handle that before anything else
 					
 					if (!socket.data.hasRequestedPort) {
-						if (!socket.data.symKey) { break; }
-						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+						if (!socket.data.symKey) {
+							logger.info("No requested port or symmetric key.")
+							break;
+						}
+						logger.debug(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 
 						// also handle secret exchanges before anything else
 						if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
@@ -175,7 +180,10 @@ export async function startServer(
 							logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
 						}
 
-						if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
+						if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) {
+							logger.warn("Got message type of " + message.messageType + " where a port request was expected.");
+							continue;
+						} // not a port request, ignore (this should never happen)
 
 						if (message.payload == undefined) { logger.warn(`Connection from ${socket.remoteAddress} rejected due to undefined port request.`); return;}
 						const decryptedPayload = await decryptData(socket.data.symKey, message.payload);

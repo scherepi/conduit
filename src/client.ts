@@ -164,7 +164,7 @@ export async function connectToConduit(
 							logger.info(`Received key ${receivedKey}`);
 							sharedSymKey = await deriveSharedSecret(receivedKey, clientKeyPair.privateKey);
 							logger.info(`Shared sym key: ${sharedSymKey}`);
-							logger.debugVerbose("Successfully generated symmetric key from key exchange!")
+							logger.debugVerbose("Successfully generated symmetric key from key exchange! Sending port request/secret key.");
 
 							if (secretKey) {
 								logger.debugVerbose("Authenticating to server with secret key " + secretKey);
