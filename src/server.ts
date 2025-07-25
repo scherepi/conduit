@@ -139,7 +139,7 @@ export async function startServer(
 						continue;
 					}
 
-					if (message.messageType == MESSAGE_TYPE.CRYPTO_EXCHANGE) {
+					if (message.messageType == MESSAGE_TYPE.CRYPTO_EXCHANGE && !socket.data.symKey) {
 						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
 						if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
