@@ -90,6 +90,7 @@ export async function encryptData(symKey: CryptoKey, message: Uint8Array | null)
     const result = new Uint8Array(iv.length + ciphertext.byteLength);
     result.set(iv, 0);
     result.set(new Uint8Array(ciphertext), iv.length);
+    console.log("Prepended IV to ciphertext for resultant payload of " + result);
     return result;
 }
 
@@ -101,6 +102,7 @@ export async function encryptData(symKey: CryptoKey, message: Uint8Array | null)
  */
 export async function decryptData(symKey: CryptoKey, message: Uint8Array) {
     const iv = message.slice(0, IV_LENGTH);
+    console.log("Decrypting with IV " + iv + " of length " + IV_LENGTH);
     const ciphertext = message.slice(IV_LENGTH);
     const plaintext = await crypto.subtle.decrypt(
         {
@@ -110,6 +112,8 @@ export async function decryptData(symKey: CryptoKey, message: Uint8Array) {
         symKey,
         ciphertext
     );
+    console.log("Decrypted to plaintext " + plaintext);
+    console.log("Decoded: " + new TextDecoder().decode(plaintext));
     if (new TextDecoder().decode(plaintext) == "CONDUIT_SPECIAL_PAYLOAD_NULL") { return null; }
     return new Uint8Array(plaintext);
 }
