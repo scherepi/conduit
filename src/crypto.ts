@@ -85,7 +85,7 @@ export async function encryptData(symKey: CryptoKey, message: Uint8Array | null)
         symKey,
         plaintext
     );
-    console.log("generated ciphertext")
+    console.log("generated ciphertext " + new Uint8Array(ciphertext))
     // Add our IV to the beginning of the ciphertext before we send it.
     const result = new Uint8Array(iv.length + ciphertext.byteLength);
     result.set(iv, 0);

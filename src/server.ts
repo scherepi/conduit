@@ -130,15 +130,6 @@ export async function startServer(
 				for (const message of socket.data.parser.parseMessages()) {
 
 					// make sure encryption is in place first
-					if (socket.data.symKey == null) {
-						logger.info(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
-						logger.info("Beginning ECDH from server-side. Sending public key.");
-						const exportedKey = await exportKey(serverKeyPair.publicKey);
-						logger.info("Exported key: " + JSON.stringify(new TextDecoder().decode(exportedKey)));
-						socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, exportedKey));
-						continue;
-					}
-
 					if (message.messageType == MESSAGE_TYPE.CRYPTO_EXCHANGE && !socket.data.symKey) {
 						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
@@ -153,6 +144,7 @@ export async function startServer(
 					// then, if the client has yet to request a port, handle that before anything else
 					
 					if (!socket.data.hasRequestedPort) {
+						if (!socket.data.symKey) { break; }
 						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 
 						// also handle secret exchanges before anything else
@@ -247,11 +239,11 @@ export async function startServer(
 
 					// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
 					// only handle data and subdomain messages-- nothing else should come through
-					if (message.messageType === MESSAGE_TYPE.DATA) {
+					if (message.messageType === MESSAGE_TYPE.DATA && socket.data.symKey) {
 						activeConnections
 							.get(socket.data.port as number)!
 							[message.connectionId]?.write(message.payload || new Uint8Array());
-					} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST) {
+					} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST && socket.data.symKey) {
 						if (!hostname) {
 							// if the server doesn't support subdomains, send unsupported
 							socket.write(encodeMessage(
@@ -305,6 +297,9 @@ export async function startServer(
 					listener: null,
 					remotePort: socket.remotePort,
 				};
+				exportKey(serverKeyPair.publicKey).then(exportedKey => {
+					socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, exportedKey));
+				})
 			},
 			close(socket, _error) {
 				// when the connection closes, we need to terminate the associated listener\
