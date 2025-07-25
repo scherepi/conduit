@@ -57,16 +57,24 @@ export async function connectToConduit(
 				parser.addData(data);
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
-					let decryptedPayload: Uint8Array = new Uint8Array();
+					let decryptedPayload: Uint8Array | null = new Uint8Array();
 					// If we need to decrypt, we do it first.
 					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE) {
-						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload ? parsedMessage.payload : new Uint8Array());
+						if (parsedMessage.payload == undefined) {
+							logger.error("Key exchange failed due to undefined payload. Please raise an issue on the GitHub repo."); 
+							process.exit(1);
+						}
+						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload);
 					}
 					logger.debugVerbose(
 						`[MESSAGE_TYPE: ${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`
 					);
 					switch (parsedMessage.messageType) {
 						case MESSAGE_TYPE.DATA:
+							if (!decryptedPayload) {
+								logger.info("Received data packet with null payload. Dropping it.");
+								break;
+							}
 							logger.awaitVerbose(
 								"Trying to write data to local tunnel with connection ID:",
 								parsedMessage.connectionId,
@@ -98,7 +106,7 @@ export async function connectToConduit(
 							break;
 						case MESSAGE_TYPE.SECRET_EXCHANGE:
 							// the client is receiving a message about whether its secret key authenticated it to the server
-							const secretStatus = parsedMessage.payload ? decryptedPayload[0] : undefined;
+							const secretStatus = decryptedPayload ? decryptedPayload[0] : undefined;
 							if (secretStatus == SECRET_STATUS.REJECTED) {
 								logger.error("You were kicked out of the playground for throwing sand at other kids. (Authentication Failure)");
 								process.exit(1);
@@ -145,6 +153,9 @@ export async function connectToConduit(
 								logger.error("Something went wrong with the key exchange. If this occurs often, please raise an issue in the GitHub repo.");
 								process.exit(1);
 							}
+							console.log("Received payload: " + parsedMessage.payload);
+							console.log("Payload type: " + typeof parsedMessage.payload);
+							console.log("Decoded payload: " + new TextDecoder().decode(parsedMessage.payload));
 							const receivedKey: CryptoKey = await importKey(parsedMessage.payload);
 							logger.info(`Received key ${receivedKey}`);
 							sharedSymKey = await deriveSharedSecret(receivedKey, clientKeyPair.privateKey);
@@ -171,6 +182,7 @@ export async function connectToConduit(
 								socket.write(portRequestMessage);
 								assignedPort = remotePort; // set the assigned port to the remote port we requested
 							} else {
+								logger.debugVerbose(`No remote port specified, sending a port request with a null payload.`);
 								socket.write(await encryptData(sharedSymKey, encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null)));
 							}
 							
@@ -188,7 +200,11 @@ export async function connectToConduit(
 							
 							break;
 						case MESSAGE_TYPE.PORT_RESPONSE:
-							const portStatus = parsedMessage.payload ? decryptedPayload[0] : undefined;
+							if (decryptedPayload == undefined) { 
+								logger.warn("Uh oh. Something went wrong with the port response. Please raise an issue on the GitHub repo."); 
+								process.exit(1);
+							}
+							const portStatus = decryptedPayload[0];
 							if (portStatus == REQUEST_STATUS.SUCCESS) {
 								// This means that the server gave us the port we requested
 								assignedPort = assignedPort;
@@ -206,6 +222,10 @@ export async function connectToConduit(
 							break;
 						case MESSAGE_TYPE.PORT_ASSIGNED:
 							// unpack the Uint8Array to a port number
+							if (decryptedPayload == undefined) {
+								logger.warn("Couldn't figure out what port you were assigned - something went very wrong. Please raise an issue on the GitHub repository.");
+								process.exit(1);
+							}
 							assignedPort =
 								((decryptedPayload[0] ?? 0) << 8) | (decryptedPayload[1] ?? 0);
 							// assignedPort = parsedMessage.payload && parsedMessage.payload.length >= 2 ? parsedMessage.payload[0] << 8 | parsedMessage.payload[1] : 0;
@@ -225,7 +245,11 @@ export async function connectToConduit(
 							);
 							break;
 						case MESSAGE_TYPE.SUBDOMAIN_RESPONSE:
-							const subdomainStatus = parsedMessage.payload ? decryptedPayload[0] : 1;
+							if (decryptedPayload == undefined) {
+								logger.warn("Something went wrong with parsing the subdomain response. Please raise an issue on the GitHub repository.");
+								process.exit(1);
+							}
+							const subdomainStatus = decryptedPayload[0];
 							// this message is received when the server reports the availability of a subdomain to the client.
 							if (subdomainStatus == REQUEST_STATUS.SUCCESS) {
 								logger.success(`Successfully acquired subdomain ${subdomain}.${hostname}`);

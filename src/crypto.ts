@@ -50,7 +50,7 @@ export async function importKey(payload: Uint8Array): Promise<CryptoKey> {
             namedCurve: "P-384"
         },
         true,
-        ["deriveKey"]
+        []
     )
 }
 const IV_LENGTH = 12; // This is the initalization vector required for AES-GCM encryption. We elect to prepend it to the ciphertext here. I guess it's like salting?
@@ -72,16 +72,20 @@ export async function exportKey(key: CryptoKey): Promise<Uint8Array> {
  * @param message - The message (a Uint8Array) to be encrypted for transmission.
  * @returns An encrypted Uint8Array to be decrypted with the decryptData() function.
  */
-export async function encryptData(symKey: CryptoKey, message: Uint8Array): Promise<Uint8Array> {
+export async function encryptData(symKey: CryptoKey, message: Uint8Array | null): Promise<Uint8Array> {
+    console.log("Encrypting data using symmetric key");
+    const plaintext = message == null ? new TextEncoder().encode("CONDUIT_SPECIAL_PAYLOAD_NULL") : message; // If the payload is supposed to be null, we will LITERALLY transmit NULL in all caps.
     const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+    console.log("Generated iv " + iv);
     const ciphertext = await crypto.subtle.encrypt(
         {
             name: "AES-GCM",
             iv: iv
         },
         symKey,
-        message
+        plaintext
     );
+    console.log("generated ciphertext")
     // Add our IV to the beginning of the ciphertext before we send it.
     const result = new Uint8Array(iv.length + ciphertext.byteLength);
     result.set(iv, 0);
@@ -106,5 +110,6 @@ export async function decryptData(symKey: CryptoKey, message: Uint8Array) {
         symKey,
         ciphertext
     );
+    if (new TextDecoder().decode(plaintext) == "CONDUIT_SPECIAL_PAYLOAD_NULL") { return null; }
     return new Uint8Array(plaintext);
 }

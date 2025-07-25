@@ -186,7 +186,8 @@ export async function startServer(
 
 						if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) continue; // not a port request, ignore (this should never happen)
 
-						const decryptedPayload = message.payload ? new Uint8Array(await decryptData(socket.data.symKey, message.payload)) : null;
+						if (message.payload == undefined) { logger.warn(`Connection from ${socket.remoteAddress} rejected due to undefined port request.`); return;}
+						const decryptedPayload = await decryptData(socket.data.symKey, message.payload);
 
 						const requestedPort = decryptedPayload
 							? ((decryptedPayload[0] ?? 0) << 8) | (decryptedPayload[1] ?? 0)
