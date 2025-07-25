@@ -50,7 +50,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 						`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
 					);
 
-					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, null);
+					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, new Uint8Array([0]));
 					intiatingSocket.write(msg);
 
 					if (!activeConnections.has(socket.localPort)) {

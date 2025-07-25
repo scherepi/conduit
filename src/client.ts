@@ -11,6 +11,7 @@ import MessageParser, {
 import { generateKeyPair, deriveSharedSecret, importKey, exportKey, decryptData, encryptData } from "./crypto"
 import logger from "./logger";
 import { isErrored } from "stream";
+import { parse } from "path";
 
 const conduitPort: number = 4225; // hard-coded server control port - "HACK" on a phone!
 let conduitSocket: Bun.Socket | undefined; // connection to the central conduit server; value assigned in functions
@@ -57,11 +58,12 @@ export async function connectToConduit(
 				parser.addData(data);
 				// we've gotta interpret the server message
 				for (const parsedMessage of parser.parseMessages()) {
+					logger.debugVerbose(`MESSAGE RECEIVED: MESSAGE_TYPE ${parsedMessage.messageType}, PAYLOAD: ${parsedMessage.payload}`)
 					let decryptedPayload: Uint8Array | null = new Uint8Array();
 					// If we need to decrypt, we do it first.
 					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE) {
 						if (parsedMessage.payload == undefined) {
-							logger.error("Key exchange failed due to undefined payload. Please raise an issue on the GitHub repo."); 
+							logger.error("Received undefined payload. Please raise an issue on the GitHub repo."); 
 							process.exit(1);
 						}
 						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload);
@@ -283,7 +285,7 @@ export async function connectToConduit(
 					}
 				}
 			},
-			async open(socket) {
+			open(socket) {
 				// First thing's first, we gotta make sure we're secure.
 				logger.debugVerbose("Sending ECDH public key to Conduit server.");
 				logger.infoVerbose("Exported JWK: " + JSON.stringify(publicKey));
