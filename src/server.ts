@@ -139,7 +139,6 @@ export async function startServer(
 						const publicReceived: CryptoKey = await importKey(message.payload)
 						logger.info(publicReceived);
 						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
-						continue;
 					}
 					// then, if the client has yet to request a port, handle that before anything else
 					
