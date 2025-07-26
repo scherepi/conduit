@@ -61,7 +61,7 @@ export async function connectToConduit(
 					logger.debugVerbose(`MESSAGE RECEIVED: MESSAGE_TYPE ${parsedMessage.messageType}, PAYLOAD: ${parsedMessage.payload}`)
 					let decryptedPayload: Uint8Array | null = new Uint8Array();
 					// If we need to decrypt, we do it first.
-					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE && parsedMessage.messageType !== MESSAGE_TYPE.NEW_CONNECTION) {
+					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE && parsedMessage.messageType !== MESSAGE_TYPE.NEW_CONNECTION && parsedMessage.messageType !== MESSAGE_TYPE.CONNECTION_CLOSED) {
 						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload ? parsedMessage.payload : new Uint8Array());
 					}
 					logger.debugVerbose(
