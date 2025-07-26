@@ -61,12 +61,8 @@ export async function connectToConduit(
 					logger.debugVerbose(`MESSAGE RECEIVED: MESSAGE_TYPE ${parsedMessage.messageType}, PAYLOAD: ${parsedMessage.payload}`)
 					let decryptedPayload: Uint8Array | null = new Uint8Array();
 					// If we need to decrypt, we do it first.
-					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE) {
-						if (parsedMessage.payload == undefined) {
-							logger.error("Received undefined payload. Please raise an issue on the GitHub repo."); 
-							process.exit(1);
-						}
-						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload);
+					if (parsedMessage.messageType !== MESSAGE_TYPE.CRYPTO_EXCHANGE && parsedMessage.messageType !== MESSAGE_TYPE.NEW_CONNECTION) {
+						decryptedPayload = await decryptData(sharedSymKey, parsedMessage.payload ? parsedMessage.payload : new Uint8Array());
 					}
 					logger.debugVerbose(
 						`[MESSAGE_TYPE: ${parsedMessage.messageType}] ${parsedMessage.payloadLength} bytes`
@@ -189,7 +185,7 @@ export async function connectToConduit(
 								assignedPort = remotePort; // set the assigned port to the remote port we requested
 							} else {
 								logger.debugVerbose(`No remote port specified, sending a port request with a null payload.`);
-								socket.write(await encryptData(sharedSymKey, encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, null)));
+								socket.write(encodeMessage(0, MESSAGE_TYPE.PORT_REQUEST, await encryptData(sharedSymKey, null)));
 							}
 							
 							// request a subdomain if one is provided

@@ -31,7 +31,7 @@ let tunnelBindAddress: string = "";
 let minimumPort: number = 1024;
 let maximumPort: number = 65535;
 
-function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
+function startListener(port: number, initiatingSocket: Bun.Socket<ClientData>) {
 	const listener = Bun.listen<ServerListenerData>({
 		hostname: tunnelBindAddress,
 		port,
@@ -50,8 +50,8 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 						`New connection established on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]`
 					);
 
-					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, new Uint8Array([0]));
-					intiatingSocket.write(msg);
+					const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.NEW_CONNECTION, null);
+					initiatingSocket.write(msg);
 
 					if (!activeConnections.has(socket.localPort)) {
 						activeConnections.set(socket.localPort, {});
@@ -63,13 +63,18 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 			},
 			data(socket, data) {
 				// Handle incoming data from this socket
-				logger.debugVerbose(
+				logger.debug(
 					`Data received on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]:`,
 					data
 				);
+				logger.debug(initiatingSocket.data.symKey ? "Parent socket has sym key" : "Parent socket is missing sym key.");
 				// Forward the data back to the initiating socket
-				const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.DATA, data);
-				intiatingSocket.write(msg);
+				if (initiatingSocket.data.symKey) {
+					encryptData(initiatingSocket.data.symKey, data).then(encryptedData => {
+						const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.DATA, encryptedData);
+						initiatingSocket.write(msg);
+					});
+				}
 			},
 			close(socket) {
 				logger.debugVerbose(
@@ -78,7 +83,7 @@ function startListener(port: number, intiatingSocket: Bun.Socket<ClientData>) {
 				portsInUse.delete(socket.localPort);
 
 				const msg = encodeMessage(socket.data.connectionId, MESSAGE_TYPE.CONNECTION_CLOSED, null);
-				intiatingSocket.write(msg);
+				initiatingSocket.write(msg);
 
 				activeConnections.get(socket.localPort)?.[socket.data.connectionId]?.end();
 			},
