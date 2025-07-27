@@ -63,11 +63,11 @@ function startListener(port: number, initiatingSocket: Bun.Socket<ClientData>) {
 			},
 			data(socket, data) {
 				// Handle incoming data from this socket
-				logger.debug(
+				logger.debugVerbose(
 					`Data received on port ${socket.localPort} [connectionId: ${socket.data.connectionId}]:`,
 					data
 				);
-				logger.debug(initiatingSocket.data.symKey ? "Parent socket has sym key" : "Parent socket is missing sym key.");
+				logger.debugVerbose(initiatingSocket.data.symKey ? "Parent socket has sym key" : "Parent socket is missing sym key.");
 				// Forward the data back to the initiating socket
 				if (initiatingSocket.data.symKey) {
 					encryptData(initiatingSocket.data.symKey, data).then(encryptedData => {
@@ -139,13 +139,13 @@ export async function startServer(
 						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
 						if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
-						logger.info("Received JWK string: " + new TextDecoder().decode(message.payload));
-						logger.info("Parsed object: " + JSON.parse(new TextDecoder().decode(message.payload)))
+						logger.infoVerbose("Received JWK string: " + new TextDecoder().decode(message.payload));
+						logger.infoVerbose("Parsed object: " + JSON.parse(new TextDecoder().decode(message.payload)))
 						const publicReceived: CryptoKey = await importKey(message.payload)
-						logger.info(publicReceived);
+						logger.infoVerbose(publicReceived);
 						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
 						logger.info("Got symmetric key from public keys.");
-						logger.info(socket.data.symKey);
+						logger.infoVerbose(socket.data.symKey);
 					}
 					// then, if the client has yet to request a port, handle that before anything else
 					
@@ -154,7 +154,7 @@ export async function startServer(
 							logger.info("No requested port or symmetric key.")
 							break;
 						}
-						logger.debug(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 
 						// also handle secret exchanges before anything else
 						if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {

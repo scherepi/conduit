@@ -155,13 +155,13 @@ export async function connectToConduit(
 								logger.error("Something went wrong with the key exchange. If this occurs often, please raise an issue in the GitHub repo.");
 								process.exit(1);
 							}
-							console.log("Received payload: " + parsedMessage.payload);
-							console.log("Payload type: " + typeof parsedMessage.payload);
-							console.log("Decoded payload: " + new TextDecoder().decode(parsedMessage.payload));
+							logger.debugVerbose("Received payload: " + parsedMessage.payload);
+							logger.debugVerbose("Payload type: " + typeof parsedMessage.payload);
+							logger.debugVerbose("Decoded payload: " + new TextDecoder().decode(parsedMessage.payload));
 							const receivedKey: CryptoKey = await importKey(parsedMessage.payload);
-							logger.info(`Received key ${receivedKey}`);
+							logger.infoVerbose(`Received key ${receivedKey}`);
 							sharedSymKey = await deriveSharedSecret(receivedKey, clientKeyPair.privateKey);
-							logger.info(`Shared sym key: ${sharedSymKey}`);
+							logger.infoVerbose(`Shared sym key: ${sharedSymKey}`);
 							logger.debugVerbose("Successfully generated symmetric key from key exchange! Sending port request/secret key.");
 
 							if (secretKey) {
