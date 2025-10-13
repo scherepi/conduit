@@ -53,7 +53,7 @@ program.configureHelp({
                         const term = "  " + helper.subcommandTerm(c).padEnd(termWidth);
                         const desc = helper.commandDescription(c) || "";
                         const wrapped = wrapAnsi(desc, descWidth, { hard: true })
-                            .split("\n")
+                            .split("\n") 
                             .map((line, i) => (i === 0 ? "" : " ".repeat(term.length)) + line)
                             .join("\n");
                         return term + wrapped;
@@ -179,6 +179,7 @@ program
 		"65535"
 	)
 	.option("-s, --secret <SECRET>", "Secret key for authentication (optional) (default: environment variable CONDUIT_SECRET)")
+	.option("-v, --verbose", "Enable verbose output")
 	.action((options, _command) => {
 		if (options.minPort && isNaN(parseInt(options.minPort))) {
 			logger.error("Minimum port needs to be valid integer.");
@@ -187,6 +188,7 @@ program
 			logger.error("Maximum port needs to be valid integer.");
 		}
 		const secret = options.secret || process.env.CONDUIT_SECRET; 
+		logger.verbose = options.verbose ? true : false;
 
 		startServer(
 			options.bind,
