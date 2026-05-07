@@ -117,3 +117,21 @@ export async function decryptData(symKey: CryptoKey, message: Uint8Array) {
     if (new TextDecoder().decode(plaintext) == "CONDUIT_SPECIAL_PAYLOAD_NULL") { return null; }
     return new Uint8Array(plaintext);
 }
+/**
+ * Generates a secure-enough admin password for the server's admin panel 
+ * @param keyPair - The server's generated key pair. The private key will be used to derive the password.
+ * @returns
+ */
+export async function generateAdminPassword(keyPair: CryptoKeyPair): Promise<string> {
+    
+    // put together a quick rudimentary salt for the algorithm 
+    const conduitSalt = new TextEncoder().encode("conduitrocks");
+    // use the server's private key to securely derive 96 random bits (12 bytes) using the HKDF algorithm
+    const secureBits: ArrayBuffer = await crypto.subtle.deriveBits(
+        { name: 'HKDF', hash: 'SHA-256', salt: conduitSalt, info: new Uint8Array() },
+        keyPair.privateKey,
+        96
+    );
+
+    return Buffer.from(secureBits).toString("base64");
+}

@@ -1,5 +1,6 @@
+import { server } from "typescript";
 import { initCaddy, addReverseProxy, removeReverseProxy } from "./caddy";
-import { generateKeyPair, deriveSharedSecret, exportKey, importKey, encryptData, decryptData } from "./crypto";
+import { generateKeyPair, deriveSharedSecret, exportKey, importKey, encryptData, decryptData, generateAdminPassword } from "./crypto";
 import logger from "./logger";
 import MessageParser, { encodeMessage, MESSAGE_TYPE, REQUEST_STATUS, SECRET_STATUS } from "./messages";
 const controlPort = 4225;
@@ -97,14 +98,27 @@ function startListener(port: number, initiatingSocket: Bun.Socket<ClientData>) {
 	return listener;
 }
 
+function exposeServerMonitor(adminPort: number, hostname?: string) {
+	// register the admin subdomain if Caddy's active
+	if (hostname) { addReverseProxy(hostname, "admin", adminPort) };
+
+	// derive a secure password for the admin panel from the server key pair
+	const adminPassword = generateAdminPassword(serverKeyPair);
+}
+
 export async function startServer(
 	listenAddress: string,
 	tunnelAddress: string,
 	minPort: number,
 	maxPort: number,
 	hostname?: string,
-	secret?: string
+	secret?: string,
+	exposeAdmin?: Boolean,
+	adminPort: number = 2026
 ) {
+	if (exposeAdmin) {
+		exposeServerMonitor(adminPort, hostname);
+	}
 	serverKeyPair = await generateKeyPair();
 	tunnelBindAddress = tunnelAddress;
 	minimumPort = minPort;
