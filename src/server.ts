@@ -116,14 +116,16 @@ export async function startServer(
 	exposeAdmin?: Boolean,
 	adminPort: number = 2026
 ) {
-	if (exposeAdmin) {
-		exposeServerMonitor(adminPort, hostname);
-	}
+	
 	serverKeyPair = await generateKeyPair();
 	tunnelBindAddress = tunnelAddress;
 	minimumPort = minPort;
 	maximumPort = maxPort;
 
+	if (exposeAdmin) {
+			exposeServerMonitor(adminPort, hostname);
+		}
+	
 	if (hostname) {
 		try {
 			await initCaddy(hostname, "/etc/caddy/certs/domain.cert.pem", "/etc/caddy/certs/private.key.pem");
