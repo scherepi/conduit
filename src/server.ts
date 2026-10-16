@@ -118,9 +118,8 @@ export async function startServer(
 			if ((e as any).code == "ConnectionRefused") {
 				logger.error("Failed to connect to Caddy. Is it running?");
 			} else {
-				logger.error("An error occurred while initializing Caddy:");
-				console.log(e);
-				console.log(await (e as { response: Response }).response.text());
+				// initCaddy already logged the error and caddy's response (reading the response again would throw)
+				logger.error("Couldn't set up Caddy, so subdomains won't work until that's fixed.");
 			}
 		}
 	}
