@@ -16,6 +16,7 @@ type ClientData = {
 	parser: MessageParser;
 	listener: Bun.TCPSocketListener<ServerListenerData> | null; // the listener server that is created for this client
 	remotePort: number; // the port of the client connection-- we store this for logging, because after the connection is closed this data is lost
+	processing: Promise<void>; // resolves once every message received so far has been handled
 };
 type ServerListenerData = { connectionId: number };
 
@@ -97,6 +98,20 @@ function startListener(port: number, initiatingSocket: Bun.Socket<ClientData>) {
 	return listener;
 }
 
+<<<<<<< Updated upstream
+=======
+async function exposeServerMonitor(adminPort: number, hostname?: string) {
+	logger.info(`Exposing admin panel on port ${adminPort}`);
+	// register the admin subdomain if Caddy's active
+	if (hostname) { addReverseProxy(hostname, "admin", adminPort) };
+
+	// derive a secure password for the admin panel from the server key pair
+	const adminPassword: string = await generateAdminPassword(serverKeyPair);
+	
+
+}
+
+>>>>>>> Stashed changes
 export async function startServer(
 	listenAddress: string,
 	tunnelAddress: string,
@@ -129,171 +144,177 @@ export async function startServer(
 		hostname: listenAddress,
 		port: controlPort,
 		socket: {
-			async data(socket, data) {
+			data(socket, data) {
 				socket.data.parser.addData(data);
 
-				for (const message of socket.data.parser.parseMessages()) {
+				// messages get handled one at a time, in order. handling one awaits crypto, so otherwise the
+				// next data event could jump ahead, like a subdomain request being handled before the port
+				// request finished. errors are caught so one bad message can't crash the whole server.
+				socket.data.processing = socket.data.processing.then(async () => {
+					for (const message of socket.data.parser.parseMessages()) {
 
-					// make sure encryption is in place first
-					if (message.messageType == MESSAGE_TYPE.CRYPTO_EXCHANGE && !socket.data.symKey) {
-						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
-						logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
-						if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
-						logger.infoVerbose("Received JWK string: " + new TextDecoder().decode(message.payload));
-						logger.infoVerbose("Parsed object: " + JSON.parse(new TextDecoder().decode(message.payload)))
-						const publicReceived: CryptoKey = await importKey(message.payload)
-						logger.infoVerbose(publicReceived);
-						socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
-						logger.info("Got symmetric key from public keys.");
-						logger.infoVerbose(socket.data.symKey);
-					}
-					// then, if the client has yet to request a port, handle that before anything else
-					
-					if (!socket.data.hasRequestedPort) {
-						if (!socket.data.symKey) {
-							logger.info("No requested port or symmetric key.")
-							break;
+						// make sure encryption is in place first
+						if (message.messageType == MESSAGE_TYPE.CRYPTO_EXCHANGE && !socket.data.symKey) {
+							logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+							logger.infoVerbose("Key exchange complete. Deriving shared symmetric key.");
+							if (!message.payload) { logger.error("Cryptographic exchange failed, public key not transmitted"); return; }
+							logger.infoVerbose("Received JWK string: " + new TextDecoder().decode(message.payload));
+							logger.infoVerbose("Parsed object: " + JSON.parse(new TextDecoder().decode(message.payload)))
+							const publicReceived: CryptoKey = await importKey(message.payload)
+							logger.infoVerbose(publicReceived);
+							socket.data.symKey = await deriveSharedSecret(publicReceived, serverKeyPair.privateKey);
+							logger.info("Got symmetric key from public keys.");
+							logger.infoVerbose(socket.data.symKey);
+							continue;
 						}
-						logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
+						// then, if the client has yet to request a port, handle that before anything else
+					
+						if (!socket.data.hasRequestedPort) {
+							if (!socket.data.symKey) {
+								logger.info("No requested port or symmetric key.")
+								break;
+							}
+							logger.debugVerbose(`(${socket.remoteAddress}) [MESSAGE_TYPE: ${message.messageType}] ${message.payloadLength} bytes`);
 
-						// also handle secret exchanges before anything else
-						if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
-							const receivedSecret = new TextDecoder().decode(
-								await decryptData(socket.data.symKey, message.payload || new Uint8Array())
-							);
-							if (secret && receivedSecret === secret) {
-								// the secret is correct, send a success response
-								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
-									await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.SUCCESS]))
-								));
-								logger.info(`Connection from ${socket.remoteAddress} authenticated successfully.`);
-								socket.data.hasAuthenticated = true;
-								continue;
-							} else {
-								// if the secret doesn't match, send an error response and close the connection
+							// also handle secret exchanges before anything else
+							if (message.messageType === MESSAGE_TYPE.SECRET_EXCHANGE) {
+								const receivedSecret = new TextDecoder().decode(
+									await decryptData(socket.data.symKey, message.payload || new Uint8Array())
+								);
+								if (secret && receivedSecret === secret) {
+									// the secret is correct, send a success response
+									socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
+										await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.SUCCESS]))
+									));
+									logger.info(`Connection from ${socket.remoteAddress} authenticated successfully.`);
+									socket.data.hasAuthenticated = true;
+									continue;
+								} else {
+									// if the secret doesn't match, send an error response and close the connection
+									socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
+										await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.REJECTED]))
+									));
+									socket.end();
+									logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
+									return;
+								}
+							} else if (secret && !socket.data.hasAuthenticated) { // if a secret is set but the client doesn't have one, reject the connection
 								socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
 									await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.REJECTED]))
 								));
-								socket.end();
-								logger.warn(`Connection from ${socket.remoteAddress} rejected due to invalid secret.`);
-								return;
+								logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
 							}
-						} else if (secret && !socket.data.hasAuthenticated) { // if a secret is set but the client doesn't have one, reject the connection
-							socket.write(encodeMessage(0, MESSAGE_TYPE.SECRET_EXCHANGE, 
-								await encryptData(socket.data.symKey, new Uint8Array([SECRET_STATUS.REJECTED]))
-							));
-							logger.warn(`Connection from ${socket.remoteAddress} rejected due to no secret.`);
-						}
 
-						if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) {
-							logger.warn("Got message type of " + message.messageType + " where a port request was expected.");
-							continue;
-						} // not a port request, ignore (this should never happen)
+							if (message.messageType !== MESSAGE_TYPE.PORT_REQUEST) {
+								logger.warn("Got message type of " + message.messageType + " where a port request was expected.");
+								continue;
+							} // not a port request, ignore (this should never happen)
 
-						if (message.payload == undefined) { logger.warn(`Connection from ${socket.remoteAddress} rejected due to undefined port request.`); return;}
-						const decryptedPayload = await decryptData(socket.data.symKey, message.payload);
+							if (message.payload == undefined) { logger.warn(`Connection from ${socket.remoteAddress} rejected due to undefined port request.`); return;}
+							const decryptedPayload = await decryptData(socket.data.symKey, message.payload);
 
-						const requestedPort = decryptedPayload
-							? ((decryptedPayload[0] ?? 0) << 8) | (decryptedPayload[1] ?? 0)
-							: 0;
+							const requestedPort = decryptedPayload
+								? ((decryptedPayload[0] ?? 0) << 8) | (decryptedPayload[1] ?? 0)
+								: 0;
 
-						if (portsInUse.has(requestedPort) || isNaN(requestedPort)) {
-							// port is already in use, send an error response
-							const response = encodeMessage(
-								0,
-								MESSAGE_TYPE.PORT_RESPONSE,
-								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
-							);
-							socket.write(response);
-						} else {
-							let listener = startListener(requestedPort, socket);
-							if (!listener) {
-								// this should never happen, but if something goes wrong just say the port is unavailable
+							if (portsInUse.has(requestedPort) || isNaN(requestedPort)) {
+								// port is already in use, send an error response
 								const response = encodeMessage(
 									0,
 									MESSAGE_TYPE.PORT_RESPONSE,
 									await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
 								);
 								socket.write(response);
+							} else {
+								let listener = startListener(requestedPort, socket);
+								if (!listener) {
+									// this should never happen, but if something goes wrong just say the port is unavailable
+									const response = encodeMessage(
+										0,
+										MESSAGE_TYPE.PORT_RESPONSE,
+										await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
+									);
+									socket.write(response);
+									return;
+								}
+
+								while (listener && (listener.port < minimumPort || listener.port > maximumPort)) {
+									logger.warn("Port assigned was outside allowed range, reassigning");
+									listener = startListener(requestedPort, socket);
+								}
+
+								socket.data.listener = listener;
+								socket.data.port = listener.port;
+
+								// port is available, tell the client to move on
+								let response;
+								if (requestedPort == 0) {
+									// If port was randomly assigned, broadcast the assignment to the user
+									response = encodeMessage(
+										0,
+										MESSAGE_TYPE.PORT_ASSIGNED,
+										await encryptData(socket.data.symKey, new Uint8Array([listener.port >> 8, listener.port & 0xff]))
+									);
+								} else {
+									response = encodeMessage(
+										0,
+										MESSAGE_TYPE.PORT_RESPONSE,
+										await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.SUCCESS]))
+									);
+								}
+								socket.write(response);
+								socket.data.hasRequestedPort = true;
+							}
+
+							continue; // move on to the next message
+						}
+
+						// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
+						// only handle data and subdomain messages-- nothing else should come through
+						if (message.messageType === MESSAGE_TYPE.DATA && socket.data.symKey) {
+							activeConnections
+								.get(socket.data.port as number)!
+								[message.connectionId]?.write(message.payload || new Uint8Array());
+						} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST && socket.data.symKey) {
+							if (!hostname) {
+								// if the server doesn't support subdomains, send unsupported
+								socket.write(encodeMessage(
+									0,
+									MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+									await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNSUPPORTED]))
+								));
+								logger.warn(`Subdomain request from ${socket.remoteAddress} rejected due to no hostname configured.`);
 								return;
 							}
 
-							while (listener && (listener.port < minimumPort || listener.port > maximumPort)) {
-								logger.warn("Port assigned was outside allowed range, reassigning");
-								listener = startListener(requestedPort, socket);
-							}
+							const requestedSubdomain = message.payload
+								? new TextDecoder().decode(await decryptData(socket.data.symKey, message.payload))
+								: "";
 
-							socket.data.listener = listener;
-							socket.data.port = listener.port;
-
-							// port is available, tell the client to move on
-							let response;
-							if (requestedPort == 0) {
-								// If port was randomly assigned, broadcast the assignment to the user
-								response = encodeMessage(
+							if (subdomainsInUse.has(requestedSubdomain)) {
+								// send the client a message that says that subdomain is unavailable
+								const response = encodeMessage(
 									0,
-									MESSAGE_TYPE.PORT_ASSIGNED,
-									await encryptData(socket.data.symKey, new Uint8Array([listener.port >> 8, listener.port & 0xff]))
+									MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
+									await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
 								);
+								socket.write(response);
 							} else {
-								response = encodeMessage(
+								await addReverseProxy(hostname, requestedSubdomain, socket.data.port as number);
+
+								subdomainsInUse.add(requestedSubdomain);
+								socket.data.subdomain = requestedSubdomain;
+
+								const response = encodeMessage(
 									0,
-									MESSAGE_TYPE.PORT_RESPONSE,
+									MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
 									await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.SUCCESS]))
 								);
+								socket.write(response);
 							}
-							socket.write(response);
-							socket.data.hasRequestedPort = true;
-						}
-
-						continue; // move on to the next message
-					}
-
-					// if the client already has a port, just handle the incoming data by forwarding it to the correct connection on the listener
-					// only handle data and subdomain messages-- nothing else should come through
-					if (message.messageType === MESSAGE_TYPE.DATA && socket.data.symKey) {
-						activeConnections
-							.get(socket.data.port as number)!
-							[message.connectionId]?.write(message.payload || new Uint8Array());
-					} else if (message.messageType === MESSAGE_TYPE.SUBDOMAIN_REQUEST && socket.data.symKey) {
-						if (!hostname) {
-							// if the server doesn't support subdomains, send unsupported
-							socket.write(encodeMessage(
-								0,
-								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNSUPPORTED]))
-							));
-							logger.warn(`Subdomain request from ${socket.remoteAddress} rejected due to no hostname configured.`);
-							return;
-						}
-
-						const requestedSubdomain = message.payload
-							? new TextDecoder().decode(await decryptData(socket.data.symKey, message.payload))
-							: "";
-
-						if (subdomainsInUse.has(requestedSubdomain)) {
-							// send the client a message that says that subdomain is unavailable
-							const response = encodeMessage(
-								0,
-								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.UNAVAILABLE]))
-							);
-							socket.write(response);
-						} else {
-							await addReverseProxy(hostname, requestedSubdomain, socket.data.port as number);
-
-							subdomainsInUse.add(requestedSubdomain);
-							socket.data.subdomain = requestedSubdomain;
-
-							const response = encodeMessage(
-								0,
-								MESSAGE_TYPE.SUBDOMAIN_RESPONSE,
-								await encryptData(socket.data.symKey, new Uint8Array([REQUEST_STATUS.SUCCESS]))
-							);
-							socket.write(response);
 						}
 					}
-				}
+				}).catch(e => logger.error(`Couldn't handle a message from ${socket.remoteAddress}:`, e));
 			},
 			open(socket) {
 				// Triggers on receiving new connection to listener server
@@ -308,6 +329,7 @@ export async function startServer(
 					parser: new MessageParser(),
 					listener: null,
 					remotePort: socket.remotePort,
+					processing: Promise.resolve(),
 				};
 				exportKey(serverKeyPair.publicKey).then(exportedKey => {
 					socket.write(encodeMessage(0, MESSAGE_TYPE.CRYPTO_EXCHANGE, exportedKey));
