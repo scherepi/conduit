@@ -98,20 +98,6 @@ function startListener(port: number, initiatingSocket: Bun.Socket<ClientData>) {
 	return listener;
 }
 
-<<<<<<< Updated upstream
-=======
-async function exposeServerMonitor(adminPort: number, hostname?: string) {
-	logger.info(`Exposing admin panel on port ${adminPort}`);
-	// register the admin subdomain if Caddy's active
-	if (hostname) { addReverseProxy(hostname, "admin", adminPort) };
-
-	// derive a secure password for the admin panel from the server key pair
-	const adminPassword: string = await generateAdminPassword(serverKeyPair);
-	
-
-}
-
->>>>>>> Stashed changes
 export async function startServer(
 	listenAddress: string,
 	tunnelAddress: string,
